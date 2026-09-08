@@ -37,7 +37,7 @@ export class AdminView {
         <button class="button coral full-width" type="submit" data-cy="block-day">Bloquear este día <span aria-hidden="true">↗</span></button><p id="block-submit-error" class="field-error" role="alert" data-cy="block-submit-error"></p>
         </form><p class="block-note">Si la fecha tiene turnos confirmados, el sistema te avisará y no permitirá bloquearla.</p></div></section>
         <section class="admin-card" aria-labelledby="blocked-heading"><div class="card-heading"><h2 id="blocked-heading">Días bloqueados</h2><p>Estas fechas no admiten nuevas reservas.</p></div><div id="blocked-days" data-cy="blocked-days">${this.renderBlockedDays()}</div></section>
-        <p class="scope-note">Vista de administración simulada, sin inicio de sesión. Solo incluye horarios y bloqueo individual de fechas.</p>
+        <p class="scope-note">Administración simulada, sin inicio de sesión. En la demo compartida, cualquier persona con el enlace puede cambiar horarios y bloquear fechas.</p>
       </aside>
     </div>`;
   }

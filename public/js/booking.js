@@ -143,7 +143,7 @@ export class BookingView {
           <div class="field field-wide"><label for="guest-phone">Teléfono <span>Opcional</span></label><input id="guest-phone" name="phone" type="tel" autocomplete="tel" placeholder="Tu número de contacto" aria-describedby="guest-phone-error" data-cy="guest-phone"><p id="guest-phone-error" class="field-error" data-cy="guest-phone-error"></p></div>
           <div class="field field-wide"><label for="guest-note">¿Algo que quieras compartir? <span>Opcional</span></label><textarea id="guest-note" name="note" rows="2" placeholder="Cuéntanos brevemente el motivo del encuentro…" aria-describedby="guest-note-error" data-cy="guest-note"></textarea><p id="guest-note-error" class="field-error" data-cy="guest-note-error"></p></div>
         </div>
-        <p class="form-note">Esta es una demostración académica local. Usa datos ficticios: no se enviarán correos ni notificaciones reales.</p>
+        <p class="form-note">Esta es una demostración académica. Usa datos ficticios: no se enviarán correos ni notificaciones reales.</p>
         <div class="form-actions"><span class="required-note">* Campos obligatorios</span><button class="button primary" type="submit" data-cy="confirm-booking">Confirmar reserva <span aria-hidden="true">↗</span></button></div>
         <p class="field-error" role="alert" id="guest-submit-error" data-cy="guest-submit-error"></p>
       </form>
@@ -157,7 +157,7 @@ export class BookingView {
       <span class="success-symbol" aria-hidden="true">✓</span><p class="eyebrow small">UN MOMENTO RESERVADO PARA TI</p>
       <h2 tabindex="-1" data-cy="booking-step-title">Nos vemos pronto.</h2><p class="panel-subtitle">Tu turno está confirmado y el horario ya no está disponible para otras reservas.</p>
       <div class="receipt-card"><div class="receipt-main"><p class="eyebrow small">RESERVA CONFIRMADA</p><h3>${safe(receipt.eventName)}</h3><p class="receipt-detail"><span aria-hidden="true">▦</span> ${safe(formatDate(receipt.date, { weekday: 'long', year: 'numeric' }))}</p><p class="receipt-detail"><span aria-hidden="true">◷</span> ${safe(receipt.time)} h · ${receipt.duration} minutos</p><p class="receipt-detail"><span aria-hidden="true">◎</span> Buenos Aires · Encuentro virtual</p></div><div class="receipt-reference"><span>Tu referencia</span><strong data-cy="booking-reference">${safe(receipt.reference)}</strong></div></div>
-      <p class="simulation-notice" data-cy="simulated-notifications"><strong>Confirmación y aviso al profesional: simulados.</strong><br>No se envió ningún correo real. Tu reserva sí quedó guardada en esta demostración local.</p>
+      <p class="simulation-notice" data-cy="simulated-notifications"><strong>Confirmación y aviso al profesional: simulados.</strong><br>No se envió ningún correo real. Tu reserva sí quedó guardada en esta demostración.</p>
       <button class="button secondary" type="button" data-cy="new-booking">Reservar otro turno <span aria-hidden="true">↗</span></button>
     </div>`;
   }

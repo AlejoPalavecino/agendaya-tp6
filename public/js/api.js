@@ -11,7 +11,7 @@ export async function api(path, options = {}) {
       body: options.body ? JSON.stringify(options.body) : undefined,
       cache: 'no-store',
     });
-  } catch { throw new ApiError('No se pudo conectar con la demo. Comprueba que el servidor siga encendido.', 0); }
+  } catch { throw new ApiError('No se pudo conectar con la demo. Comprueba tu conexión e intenta nuevamente.', 0); }
   const payload = await response.json();
   if (!response.ok) throw new ApiError(payload.message || 'No se pudo completar la operación.', response.status, payload);
   return payload;

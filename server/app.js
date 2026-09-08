@@ -34,7 +34,8 @@ async function readJson(request) {
   } catch { throw new DomainError('El contenido JSON no es válido.'); }
 }
 
-export function createApplication({ store, clock = Date.now, createToken = () => randomBytes(32).toString('hex') }) {
+export function createApplication({ store, trustedHosts, clock = Date.now, createToken = () => randomBytes(32).toString('hex') }) {
+  const cloudHosts = trustedHosts ? new Set(trustedHosts) : null;
   return createServer(async (request, response) => {
     const send = (status, data) => {
       response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
@@ -46,10 +47,12 @@ export function createApplication({ store, clock = Date.now, createToken = () =>
     response.setHeader('X-Frame-Options', 'DENY');
     response.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'");
     try {
-      const host = request.headers.host || '';
-      if (!/^(127\.0\.0\.1|localhost)(:\d+)?$/.test(host)) throw new DomainError('Host no permitido.', 403);
-      if (request.headers.origin && request.headers.origin !== `http://${host}`) throw new DomainError('Origen no permitido.', 403);
-      const url = new URL(request.url, `http://${host}`);
+      const host = (request.headers.host || '').toLowerCase();
+      const allowed = cloudHosts ? cloudHosts.has(host) : /^(127\.0\.0\.1|localhost)(:\d+)?$/.test(host);
+      if (!allowed) throw new DomainError('Host no permitido.', 403);
+      const origin = `${cloudHosts ? 'https' : 'http'}://${host}`;
+      if (request.headers.origin && request.headers.origin !== origin) throw new DomainError('Origen no permitido.', 403);
+      const url = new URL(request.url, origin);
       const path = url.pathname;
       const method = request.method;
       if (method === 'GET' && path === '/api/config') {
