@@ -17,6 +17,7 @@ function switchView(view) {
   }
   document.title = isBooking ? 'AgendaYA — Reserva tu próximo encuentro' : 'AgendaYA — Gestión de disponibilidad';
   if (isBooking && booking) booking.synchronize();
+  if (!isBooking && admin) admin.refreshExceptions().catch((error) => toast(error.message, 'error'));
 }
 
 document.querySelector('[data-cy="nav-booking"]').addEventListener('click', () => { location.hash = 'reservar'; switchView('reservar'); });
@@ -32,8 +33,8 @@ try {
   document.getElementById('profile-name').textContent = config.profile.name;
   document.getElementById('profile-role').textContent = config.profile.role;
   document.getElementById('profile-description').textContent = config.profile.description;
-  document.getElementById('event-name').textContent = config.event.name;
-  document.getElementById('event-duration').textContent = `${config.event.duration} minutos`;
+  document.getElementById('event-name').textContent = 'Prestaciones disponibles';
+  document.getElementById('event-duration').textContent = `${config.events.length} servicios de ${config.event.duration} minutos`;
   booking = new BookingView(config);
   admin = new AdminView(() => {
     if (booking.step === 'select') booking.refreshAvailability().catch((error) => toast(error.message, 'error'));

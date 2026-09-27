@@ -1,6 +1,6 @@
 import { datesInMonth, dayKey, isValidDate, localDate, minutesToTime, slotTimestamp, timeToMinutes } from '../public/shared/dates.js';
 import { normalizeSchedule, validateBlock, validateDateRange, validateGuest, validateQuickSettings, validateSchedule } from '../public/shared/validation.js';
-import { DEFAULT_QUICK_SETTINGS, DEMO_EVENT } from './seed.js';
+import { DEFAULT_QUICK_SETTINGS, DEMO_EVENT, DEMO_EVENTS } from './seed.js';
 
 export const HOLD_DURATION_MS = 15 * 60 * 1000;
 export const EXCEPTION_DURATION_MS = 24 * 60 * 60 * 1000;
@@ -17,6 +17,12 @@ export class DomainError extends Error {
 
 function requireValid(errors) {
   if (Object.keys(errors).length) throw new DomainError('Revisa los datos indicados.', 400, errors);
+}
+
+function eventFor(eventId) {
+  const event = DEMO_EVENTS.find((item) => item.id === eventId);
+  if (!event) throw new DomainError('Selecciona un tipo de servicio válido.');
+  return event;
 }
 
 export function isLiveHold(hold, now) { return hold.expiresAt > now; }
@@ -36,7 +42,8 @@ export function updateQuickSettings(state, settings) {
   return { quickSettings: state.quickSettings };
 }
 
-export function scheduledSlots(state, date, now) {
+export function scheduledSlots(state, date, now, eventId = DEMO_EVENT.id) {
+  const event = eventFor(eventId);
   if (!isValidDate(date) || date < localDate(now)) return [];
   if (state.blockedDays.some((blocked) => blocked.date === date)) return [];
   if (state.blockedRanges?.some((blocked) => blocked.startDate <= date && date <= blocked.endDate)) return [];
@@ -47,38 +54,39 @@ export function scheduledSlots(state, date, now) {
   let nextStart = 0;
   for (const range of [...day.ranges].sort((left, right) => timeToMinutes(left.start) - timeToMinutes(right.start))) {
     const end = timeToMinutes(range.end);
-    for (let minute = Math.max(timeToMinutes(range.start), nextStart); minute + DEMO_EVENT.duration <= end; minute += DEMO_EVENT.duration + intervalMinutes) {
+    for (let minute = Math.max(timeToMinutes(range.start), nextStart); minute + event.duration <= end; minute += event.duration + intervalMinutes) {
       const time = minutesToTime(minute);
       if (slotTimestamp(date, time) >= now + leadHours * 60 * 60 * 1000) slots.push(time);
-      nextStart = minute + DEMO_EVENT.duration + intervalMinutes;
+      nextStart = minute + event.duration + intervalMinutes;
     }
   }
   return slots;
 }
 
-function overlaps(date, time, record, intervalMinutes) {
+function overlaps(date, time, record, intervalMinutes, duration) {
   if (record.date !== date) return false;
   const start = timeToMinutes(time);
   const otherStart = timeToMinutes(record.time);
   return start < otherStart + (record.duration || DEMO_EVENT.duration) + intervalMinutes
-    && start + DEMO_EVENT.duration + intervalMinutes > otherStart;
+    && start + duration + intervalMinutes > otherStart;
 }
 
-export function availableSlots(state, date, now, ownToken = null) {
+export function availableSlots(state, date, now, ownToken = null, eventId = DEMO_EVENT.id) {
+  const event = eventFor(eventId);
   const { maxDailyBookings, intervalMinutes } = quickSettingsOf(state);
   const activeBookings = state.bookings.filter((booking) => booking.status !== 'CANCELLED');
   const confirmedCount = activeBookings.filter((booking) => booking.date === date).length;
   const activeHoldCount = state.holds.filter((hold) => hold.date === date && hold.token !== ownToken && isLiveHold(hold, now)).length;
   if (confirmedCount + activeHoldCount >= maxDailyBookings) return [];
-  return scheduledSlots(state, date, now).filter((time) => {
-    const booked = activeBookings.some((booking) => overlaps(date, time, booking, intervalMinutes));
-    const held = state.holds.some((hold) => hold.token !== ownToken && isLiveHold(hold, now) && overlaps(date, time, hold, intervalMinutes));
+  return scheduledSlots(state, date, now, eventId).filter((time) => {
+    const booked = activeBookings.some((booking) => overlaps(date, time, booking, intervalMinutes, event.duration));
+    const held = state.holds.some((hold) => hold.token !== ownToken && isLiveHold(hold, now) && overlaps(date, time, hold, intervalMinutes, event.duration));
     return !booked && !held;
   });
 }
 
-export function monthlyAvailability(state, month, now) {
-  return datesInMonth(month).map((date) => ({ date, slots: availableSlots(state, date, now) }));
+export function monthlyAvailability(state, month, now, eventId = DEMO_EVENT.id) {
+  return datesInMonth(month).map((date) => ({ date, slots: availableSlots(state, date, now, null, eventId) }));
 }
 
 function bookingFitsSchedule(booking, schedule) {
@@ -180,8 +188,8 @@ export function exceptionSummary(state) {
       reference: booking.reference, date: booking.date, time: booking.time, status: booking.status,
       deadline: booking.exceptionDeadline ?? null, resolution: booking.exceptionResolution || booking.cancelReason || null,
     })),
-    notifications: (state.notificationOutbox || []).map(({ type, reference, createdAt, deadline, delivery, accessMethod, message }) =>
-      ({ type, reference, createdAt, deadline, delivery, accessMethod, message })),
+    notifications: (state.notificationOutbox || []).map(({ type, reference, createdAt, deadline, delivery, accessMethod, message, guestEmailStatus }) =>
+      ({ type, reference, createdAt, deadline, delivery, accessMethod, message, guestEmailStatus })),
   };
 }
 
@@ -224,27 +232,29 @@ export function blockDay(state, input) {
 }
 
 export function createHold(state, input, now, token) {
-  if (input?.eventId !== DEMO_EVENT.id || !isValidDate(input?.date) || timeToMinutes(input?.time) === null) {
+  if (!isValidDate(input?.date) || timeToMinutes(input?.time) === null) {
     throw new DomainError('Selecciona una fecha y un horario válidos.');
   }
+  const event = eventFor(input.eventId);
   state.holds = state.holds.filter((hold) => isLiveHold(hold, now));
-  if (!availableSlots(state, input.date, now).includes(input.time)) {
+  if (!availableSlots(state, input.date, now, null, event.id).includes(input.time)) {
     throw new DomainError('Este horario ya no está disponible. Selecciona otro.', 409, {}, 'SLOT_UNAVAILABLE');
   }
   const hold = {
-    token, eventId: DEMO_EVENT.id, date: input.date, time: input.time,
-    duration: DEMO_EVENT.duration, expiresAt: now + HOLD_DURATION_MS,
+    token, eventId: event.id, date: input.date, time: input.time,
+    duration: event.duration, expiresAt: now + HOLD_DURATION_MS,
   };
   state.holds.push(hold);
   return { ...hold, serverNow: now };
 }
 
 export function bookingReceipt(booking) {
+  const event = eventFor(booking.eventId || DEMO_EVENT.id);
   return {
-    reference: booking.reference, date: booking.date, time: booking.time,
-    eventName: DEMO_EVENT.name, duration: booking.duration, status: booking.status,
+    reference: booking.reference, date: booking.date, time: booking.time, eventId: event.id,
+    eventName: event.name, duration: booking.duration, status: booking.status,
     exceptionDeadline: booking.exceptionDeadline ?? null,
-    notifications: { guestEmail: 'simulated', administrator: 'simulated' },
+    notifications: { guestEmail: booking.guestEmailStatus || 'SIMULATED_NOT_SENT', administrator: 'SIMULATED_NOT_SENT' },
   };
 }
 
@@ -255,24 +265,30 @@ export function findHold(state, token, now) {
   if (!hold || !isLiveHold(hold, now)) {
     throw new DomainError('El tiempo de reserva finalizó. Selecciona nuevamente un horario.', 410, {}, 'HOLD_EXPIRED');
   }
-  if (!availableSlots(state, hold.date, now, token).includes(hold.time)) {
+  if (!availableSlots(state, hold.date, now, token, hold.eventId || DEMO_EVENT.id).includes(hold.time)) {
     throw new DomainError('La disponibilidad cambió. Selecciona otro horario.', 409, {}, 'SLOT_UNAVAILABLE');
   }
   return { ...hold, serverNow: now };
 }
 
-export function confirmBooking(state, token, guest, now, reference) {
+export function confirmBooking(state, token, guest, now, reference, guestEmailStatus = 'SIMULATED_NOT_SENT') {
   const previous = state.bookings.find((item) => item.holdToken === token);
   if (previous) return bookingReceipt(previous);
   requireValid(validateGuest(guest));
+  if (!['SIMULATED_NOT_SENT', 'SIMULATED_FAILED'].includes(guestEmailStatus)) {
+    throw new Error('Invalid simulated email status.');
+  }
   const hold = findHold(state, token, now);
   const booking = {
     reference, holdToken: token, eventId: hold.eventId,
-    date: hold.date, time: hold.time, duration: DEMO_EVENT.duration,
+    date: hold.date, time: hold.time, duration: hold.duration,
     guest: { name: guest.name.trim(), email: guest.email.trim(), phone: guest.phone?.trim() || '', note: guest.note?.trim() || '' },
-    status: 'CONFIRMED', createdAt: now,
+    status: 'CONFIRMED', createdAt: now, guestEmailStatus,
   };
   state.bookings.push(booking);
   state.holds = state.holds.filter((item) => item.token !== token);
+  state.notificationOutbox ??= [];
+  state.notificationOutbox.push({ type: 'BOOKING_CONFIRMED', reference, createdAt: now,
+    delivery: 'SIMULATED_NOT_SENT', guestEmailStatus });
   return bookingReceipt(booking);
 }

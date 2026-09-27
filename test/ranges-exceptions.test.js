@@ -236,9 +236,10 @@ test('admin exception API exposes simulated notice, reassignment and expiry stat
   assert.deepEqual(saved.body.exceptions.sort(), [thursdayReference, fridayReference].sort());
   const exceptions = await (await fetch(`${base}/api/admin/exceptions`)).json();
   assert.equal(exceptions.bookings.length, 2);
-  assert.equal(exceptions.notifications.length, 2);
-  assert.ok(exceptions.notifications.every((notice) => notice.delivery === 'SIMULATED_NOT_SENT'));
-  assert.ok(exceptions.notifications.every((notice) => notice.accessMethod === 'SAME_BROWSER_SESSION'
+  const exceptionNotices = exceptions.notifications.filter((notice) => notice.type === 'EXCEPTION_NOTICE');
+  assert.equal(exceptionNotices.length, 2);
+  assert.ok(exceptionNotices.every((notice) => notice.delivery === 'SIMULATED_NOT_SENT'));
+  assert.ok(exceptionNotices.every((notice) => notice.accessMethod === 'SAME_BROWSER_SESSION'
     && notice.message.includes('misma pestaña')));
   assert.ok(exceptions.bookings.every((item) => item.status === 'EXCEPTION' && item.deadline === now + 24 * 60 * 60 * 1000));
   const guestStatus = await (await fetch(`${base}/api/holds/${thursdayToken}`)).json();

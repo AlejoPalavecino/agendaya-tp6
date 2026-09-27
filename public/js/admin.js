@@ -59,6 +59,7 @@ export class AdminView {
         <section class="admin-card" aria-labelledby="blocked-heading"><div class="card-heading"><h2 id="blocked-heading">Días bloqueados</h2><p>Estas fechas no admiten nuevas reservas.</p></div><div id="blocked-days" data-cy="blocked-days">${this.renderBlockedDays()}</div></section>
         <section class="admin-card" aria-labelledby="ranges-heading"><div class="card-heading"><h2 id="ranges-heading">Rangos bloqueados</h2><p>Bloqueos continuos de varios días.</p></div><div id="blocked-ranges" data-cy="blocked-ranges">${this.renderBlockedRanges()}</div></section>
         <section class="admin-card" aria-labelledby="exceptions-heading"><div class="card-heading"><h2 id="exceptions-heading">Excepciones de horario</h2><p>Turnos afectados por un cambio de atención. Los avisos se registran, pero no se envían correos.</p></div><div id="schedule-exceptions" data-cy="schedule-exceptions">${this.renderExceptions()}</div></section>
+        <section class="admin-card" aria-labelledby="booking-notifications-heading"><div class="card-heading"><h2 id="booking-notifications-heading">Avisos de reservas</h2><p>Confirmaciones registradas en esta demo. No se enviaron notificaciones externas.</p></div><div id="booking-notifications" data-cy="booking-notifications">${this.renderBookingNotifications()}</div></section>
         <p class="scope-note">Administración simulada, sin inicio de sesión. En la demo compartida, cualquier persona con el enlace puede cambiar horarios y bloquear fechas.</p>
       </aside>
     </div>`;
@@ -84,16 +85,23 @@ export class AdminView {
     if (!this.exceptions.bookings.length) return '<p class="blocked-empty">No hay turnos afectados por cambios de horario.</p>';
     return `<div class="exception-list">${this.exceptions.bookings.map((booking) => {
       const deadline = booking.deadline ? new Date(booking.deadline).toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' }) : '';
-      const notice = this.exceptions.notifications.some((item) => item.reference === booking.reference);
+      const notice = this.exceptions.notifications.some((item) => item.type === 'EXCEPTION_NOTICE' && item.reference === booking.reference);
       return `<div class="exception-item" data-cy="schedule-exception"><strong>${safe(booking.reference)}</strong><p>${safe(booking.date)} · ${safe(booking.time)} · ${safe(booking.status === 'EXCEPTION' ? 'Excepción' : booking.status === 'CANCELLED' ? 'Cancelado' : 'Reasignado')}</p>
         ${booking.status === 'EXCEPTION' ? `<p>Reasignar antes del ${safe(deadline)}.</p><form class="exception-form" data-reference="${safe(booking.reference)}" data-cy="reassign-form"><label>Nuevo día <input type="date" name="date" required data-cy="reassign-date"></label><label>Nuevo horario <input type="time" name="time" required data-cy="reassign-time"></label><button class="button primary full-width" type="submit" data-cy="reassign-booking">Reasignar turno</button><p class="field-error" role="alert" data-cy="reassign-error"></p></form>` : ''}
         ${notice ? '<small>Aviso registrado en la demo; correo no enviado.</small>' : ''}</div>`;
     }).join('')}</div>`;
   }
 
+  renderBookingNotifications() {
+    const notices = this.exceptions.notifications.filter((item) => item.type === 'BOOKING_CONFIRMED');
+    if (!notices.length) return '<p class="blocked-empty">Todavía no hay reservas confirmadas.</p>';
+    return `<div class="exception-list">${notices.map((item) => `<div class="exception-item" data-cy="booking-alert"><strong>Reserva confirmada ${safe(item.reference)}</strong><p>${safe(new Date(item.createdAt).toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' }))}</p><small>${item.guestEmailStatus === 'SIMULATED_FAILED' ? 'La simulación del aviso por correo falló.' : 'Aviso simulado; no se envió ningún correo.'}</small></div>`).join('')}</div>`;
+  }
+
   async refreshExceptions() {
     this.exceptions = await api('/api/admin/exceptions');
     this.root.querySelector('#schedule-exceptions').innerHTML = this.renderExceptions();
+    this.root.querySelector('#booking-notifications').innerHTML = this.renderBookingNotifications();
   }
 
   refreshRangeValidity(form, showErrors = true) {

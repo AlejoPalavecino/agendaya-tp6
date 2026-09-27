@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { datesInMonth, isValidMonth, localDate } from '../public/shared/dates.js';
 import { blockDateRange, blockDay, confirmBooking, createHold, DomainError, exceptionSummary, expireExceptions, findHold, guestReassignmentSlots, monthlyAvailability, quickSettingsOf, reassignException, reassignGuestException, updateQuickSettings, updateSchedule } from './domain.js';
-import { DEMO_EVENT, DEMO_PROFILE } from './seed.js';
+import { DEMO_EVENT, DEMO_EVENTS, DEMO_PROFILE } from './seed.js';
 
 const PUBLIC_DIRECTORY = fileURLToPath(new URL('../public/', import.meta.url));
 const STATIC_FILES = new Map([
@@ -34,7 +34,8 @@ async function readJson(request) {
   } catch { throw new DomainError('El contenido JSON no es válido.'); }
 }
 
-export function createApplication({ store, trustedHosts, clock = Date.now, createToken = () => randomBytes(32).toString('hex') }) {
+export function createApplication({ store, trustedHosts, clock = Date.now, createToken = () => randomBytes(32).toString('hex'),
+  simulatedGuestEmailStatus = 'SIMULATED_NOT_SENT' }) {
   const cloudHosts = trustedHosts ? new Set(trustedHosts) : null;
   async function currentState(now) {
     const state = await store.read();
@@ -62,13 +63,16 @@ export function createApplication({ store, trustedHosts, clock = Date.now, creat
       const path = url.pathname;
       const method = request.method;
       if (method === 'GET' && path === '/api/config') {
-        return send(200, { profile: DEMO_PROFILE, event: DEMO_EVENT, serverNow: clock(), today: localDate(clock()) });
+        return send(200, { profile: DEMO_PROFILE, event: DEMO_EVENT, events: DEMO_EVENTS,
+          serverNow: clock(), today: localDate(clock()) });
       }
       if (method === 'GET' && path === '/api/availability') {
         const month = url.searchParams.get('month');
         if (!isValidMonth(month)) throw new DomainError('El mes debe tener formato AAAA-MM.');
+        const eventId = url.searchParams.get('eventId') || DEMO_EVENT.id;
         const now = clock();
-        return send(200, { month, days: monthlyAvailability(await currentState(now), month, now), serverNow: now, today: localDate(now) });
+        return send(200, { month, eventId, days: monthlyAvailability(await currentState(now), month, now, eventId),
+          serverNow: now, today: localDate(now) });
       }
       if (method === 'GET' && path === '/api/admin/availability') {
         const state = await currentState(clock());
@@ -145,7 +149,8 @@ export function createApplication({ store, trustedHosts, clock = Date.now, creat
         const now = clock();
         return send(201, await store.mutate((state) => {
           expireExceptions(state, now);
-          return confirmBooking(state, body.holdToken, body.guest || {}, now, `AY-${randomBytes(5).toString('hex').toUpperCase()}`);
+          return confirmBooking(state, body.holdToken, body.guest || {}, now,
+            `AY-${randomBytes(5).toString('hex').toUpperCase()}`, simulatedGuestEmailStatus);
         }));
       }
       if ((method === 'GET' || method === 'HEAD') && STATIC_FILES.has(path)) {

@@ -8,6 +8,8 @@ const HOLD_STORAGE_KEY = 'agendaya-current-hold';
 export class BookingView {
   constructor(config) {
     this.config = config;
+    this.events = config.events || [config.event];
+    this.eventId = config.event.id;
     this.today = config.today;
     this.month = this.today.slice(0, 7);
     this.selectedDate = null;
@@ -30,8 +32,8 @@ export class BookingView {
       try {
         const selection = await api(`/api/holds/${token}`);
         this.clockOffset = selection.serverNow - Date.now();
-        if (selection.receipt) { this.receipt = selection.receipt; this.step = 'success'; }
-        else { this.hold = selection; this.step = 'details'; }
+        if (selection.receipt) { this.receipt = selection.receipt; this.eventId = selection.receipt.eventId; this.step = 'success'; }
+        else { this.hold = selection; this.eventId = selection.eventId; this.step = 'details'; }
       } catch (error) {
         if (error.status === 0 || error.status >= 500) throw error;
         storageSet(HOLD_STORAGE_KEY, null);
@@ -52,7 +54,7 @@ export class BookingView {
     const token = storageGet(HOLD_STORAGE_KEY);
     const path = this.step === 'reassign'
       ? `/api/bookings/access/${token}/availability?month=${this.month}`
-      : `/api/availability?month=${this.month}`;
+      : `/api/availability?month=${this.month}&eventId=${encodeURIComponent(this.eventId)}`;
     const result = await api(path);
     if (version !== this.requestVersion || !['select', 'reassign'].includes(this.step)) return;
     this.today = result.today;
@@ -131,6 +133,7 @@ export class BookingView {
       ${this.message ? `<div class="expired-message" role="alert" data-cy="booking-expired">${safe(this.message)}</div>` : ''}
       <h2 class="panel-heading" tabindex="-1" data-cy="booking-step-title">${reassigning ? 'Elige un nuevo horario.' : 'Encuentra tu momento.'}</h2>
       <p class="panel-subtitle">${reassigning ? `Reasigna tu turno ${safe(this.receipt.reference)} antes del ${safe(new Date(this.receipt.exceptionDeadline).toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' }))}. Esta sesión conserva el acceso; no se envió un correo.` : 'Selecciona un día y el horario que mejor se adapte a ti.'}</p>
+      ${reassigning ? '' : `<div class="event-catalog" data-cy="event-catalog" role="group" aria-label="Tipos de servicio">${this.events.map((event) => `<button type="button" class="event-type${event.id === this.eventId ? ' selected' : ''}" data-cy="event-type" data-event-id="${safe(event.id)}" aria-pressed="${event.id === this.eventId}"><strong>${safe(event.name)}</strong><span>${event.duration} min · ${safe(event.format)}</span></button>`).join('')}</div>`}
       ${reassigning ? '<button class="text-button" type="button" data-cy="return-to-booking">← Volver a mi turno</button>' : ''}
       <div class="selection-layout">
         <div class="calendar-pane">
@@ -154,10 +157,11 @@ export class BookingView {
   }
 
   renderDetails() {
+    const event = this.events.find((item) => item.id === this.hold.eventId) || this.config.event;
     this.content.innerHTML = `<div class="booking-panel">
       <div class="form-topline"><button class="text-button" type="button" data-cy="change-time">← Cambiar horario</button><span class="hold-timer" data-cy="hold-timer">Tiempo disponible <strong id="hold-countdown">15:00</strong></span></div>
       <h2 class="panel-heading" tabindex="-1" data-cy="booking-step-title">Ya casi es tuyo.</h2><p class="panel-subtitle">Completa tus datos para confirmar este encuentro.</p>
-      <div class="booking-summary" data-cy="booking-summary"><span class="summary-icon" aria-hidden="true">◷</span><div><strong>${safe(formatDate(this.hold.date, { weekday: 'long' }))} · ${safe(this.hold.time)} h</strong><span>${safe(this.config.event.name)} · ${this.config.event.duration} min · Buenos Aires</span></div></div>
+      <div class="booking-summary" data-cy="booking-summary"><span class="summary-icon" aria-hidden="true">◷</span><div><strong>${safe(formatDate(this.hold.date, { weekday: 'long' }))} · ${safe(this.hold.time)} h</strong><span>${safe(event.name)} · ${event.duration} min · Buenos Aires</span></div></div>
       <form id="guest-form" novalidate data-cy="guest-form">
         <div class="form-grid">
           <div class="field"><label for="guest-name">Nombre completo <span>*</span></label><input id="guest-name" name="name" autocomplete="name" required placeholder="Tu nombre y apellido" aria-describedby="guest-name-error" data-cy="guest-name"><p id="guest-name-error" class="field-error" data-cy="guest-name-error"></p></div>
@@ -195,7 +199,9 @@ export class BookingView {
       <span class="success-symbol" aria-hidden="true">✓</span><p class="eyebrow small">UN MOMENTO RESERVADO PARA TI</p>
       <h2 tabindex="-1" data-cy="booking-step-title">Nos vemos pronto.</h2><p class="panel-subtitle">Tu turno está confirmado y el horario ya no está disponible para otras reservas.</p>
       <div class="receipt-card"><div class="receipt-main"><p class="eyebrow small">RESERVA CONFIRMADA</p><h3>${safe(receipt.eventName)}</h3><p class="receipt-detail"><span aria-hidden="true">▦</span> ${safe(formatDate(receipt.date, { weekday: 'long', year: 'numeric' }))}</p><p class="receipt-detail"><span aria-hidden="true">◷</span> ${safe(receipt.time)} h · ${receipt.duration} minutos</p><p class="receipt-detail"><span aria-hidden="true">◎</span> Buenos Aires · Encuentro virtual</p></div><div class="receipt-reference"><span>Tu referencia</span><strong data-cy="booking-reference">${safe(receipt.reference)}</strong></div></div>
-      <p class="simulation-notice" data-cy="simulated-notifications"><strong>Confirmación y aviso al profesional: simulados.</strong><br>No se envió ningún correo real. Tu reserva sí quedó guardada en esta demostración.</p>
+      <p class="simulation-notice" data-cy="simulated-notifications">${receipt.notifications?.guestEmail === 'SIMULATED_FAILED'
+        ? '<strong>Tu turno está confirmado, pero falló la simulación del aviso por correo.</strong><br>La reserva sigue guardada. No se envió ningún email real.'
+        : '<strong>Reserva confirmada y aviso registrado para el profesional.</strong><br>Los avisos son simulados: no se envió ningún correo real.'}</p>
       <button class="button secondary" type="button" data-cy="new-booking">Reservar otro turno <span aria-hidden="true">↗</span></button>
     </div>`;
   }
@@ -205,6 +211,10 @@ export class BookingView {
     if (!button || button.disabled || this.busy) return;
     const action = button.dataset.cy;
     try {
+      if (action === 'event-type' && this.step === 'select') {
+        this.busy = true; this.eventId = button.dataset.eventId; this.selectedDate = null; this.days = [];
+        this.render(); await this.refreshAvailability(); this.focusHeading();
+      }
       if (action === 'calendar-day') { this.selectedDate = button.dataset.date; this.message = ''; this.render(); }
       if (action === 'previous-month' || action === 'next-month') {
         this.busy = true;
@@ -222,7 +232,7 @@ export class BookingView {
           this.step = 'success'; this.render(); this.focusHeading();
           toast('Turno reasignado correctamente.');
         } else {
-          this.hold = await api('/api/holds', { method: 'POST', body: { date: this.selectedDate, time: button.dataset.time, eventId: this.config.event.id } });
+          this.hold = await api('/api/holds', { method: 'POST', body: { date: this.selectedDate, time: button.dataset.time, eventId: this.eventId } });
           this.clockOffset = this.hold.serverNow - Date.now();
           storageSet(HOLD_STORAGE_KEY, this.hold.token);
           this.step = 'details'; this.render(); this.focusHeading();
