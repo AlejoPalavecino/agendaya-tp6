@@ -1,6 +1,7 @@
 import { WEEK_DAYS, isValidDate, timeToMinutes } from './dates.js';
 
 export const BLOCK_REASONS = ['Feriado', 'Motivo Personal'];
+export const BLOCK_RANGE_REASONS = ['Vacaciones', 'Licencia Médica'];
 
 export function validateQuickSettings(settings) {
   const errors = {};
@@ -62,6 +63,16 @@ export function validateBlock({ date, reason } = {}) {
   const errors = {};
   if (!isValidDate(date)) errors.date = 'Selecciona una fecha válida.';
   if (!BLOCK_REASONS.includes(reason)) errors.reason = 'Selecciona un motivo de la lista.';
+  return errors;
+}
+
+export function validateDateRange({ startDate, endDate, reason } = {}) {
+  const errors = {};
+  if (!isValidDate(startDate)) errors.startDate = 'Selecciona una fecha de inicio válida.';
+  if (!isValidDate(endDate) || (isValidDate(startDate) && endDate <= startDate)) {
+    errors.endDate = 'La fecha de fin debe ser posterior a la de inicio.';
+  }
+  if (!BLOCK_RANGE_REASONS.includes(reason)) errors.reason = 'Selecciona una categoría de la lista.';
   return errors;
 }
 

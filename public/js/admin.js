@@ -1,13 +1,15 @@
 import { api } from './api.js';
 import { displayFieldErrors, escapeHtml as safe, showConflict, toast } from './ui.js';
-import { formatDate, minutesToTime, timeToMinutes, WEEK_DAYS } from '../shared/dates.js';
-import { BLOCK_REASONS, validateBlock, validateQuickSettings, validateSchedule } from '../shared/validation.js';
+import { formatDate, isValidDate, minutesToTime, timeToMinutes, WEEK_DAYS } from '../shared/dates.js';
+import { BLOCK_REASONS, BLOCK_RANGE_REASONS, validateBlock, validateDateRange, validateQuickSettings, validateSchedule } from '../shared/validation.js';
 
 export class AdminView {
   constructor(onSaved) {
     this.onSaved = onSaved;
     this.weeklyHours = null;
     this.blockedDays = [];
+    this.blockedRanges = [];
+    this.exceptions = { bookings: [], notifications: [] };
     this.quickSettings = null;
     this.busy = false;
     this.root = document.getElementById('admin-content');
@@ -18,9 +20,11 @@ export class AdminView {
   }
 
   async initialize() {
-    const result = await api('/api/admin/availability');
+    const [result, exceptions] = await Promise.all([api('/api/admin/availability'), api('/api/admin/exceptions')]);
     this.weeklyHours = result.weeklyHours;
     this.blockedDays = result.blockedDays;
+    this.blockedRanges = result.blockedRanges;
+    this.exceptions = exceptions;
     this.quickSettings = result.quickSettings;
     this.render();
   }
@@ -29,7 +33,7 @@ export class AdminView {
     this.root.innerHTML = `<div class="admin-layout">
       <section class="admin-card" aria-labelledby="schedule-heading"><div class="card-heading"><p class="eyebrow">01 / TU SEMANA HABITUAL</p><h2 id="schedule-heading">Horarios de atención</h2><p>Activa los días laborables y define hasta 3 franjas por día.</p></div>
       <form class="schedule-form" id="schedule-form" novalidate data-cy="schedule-form"><div class="week-editor" id="week-editor">${WEEK_DAYS.map((day) => this.renderDay(day)).join('')}</div>
-      <div class="schedule-footer"><p>Hora local de Buenos Aires. Los turnos ya confirmados se conservan.</p><button type="submit" class="button primary" data-cy="save-schedule">Guardar horarios <span aria-hidden="true">↗</span></button></div>
+      <div class="schedule-footer"><p>Hora local de Buenos Aires. Si un turno confirmado queda fuera del horario, se marca como excepción y se puede reasignar durante 24 horas. Las notificaciones de esta demo son simuladas; no se envían correos.</p><button type="submit" class="button primary" data-cy="save-schedule">Guardar horarios <span aria-hidden="true">↗</span></button></div>
       <p id="schedule-error" class="field-error" role="alert" data-cy="schedule-error"></p></form></section>
       <aside class="admin-side">
         <section class="admin-card" aria-labelledby="quick-settings-heading"><div class="card-heading"><p class="eyebrow">02 / AJUSTES DE RESERVAS</p><h2 id="quick-settings-heading">Configuraciones rápidas</h2><p>Define los límites que se aplican de inmediato al calendario público.</p></div>
@@ -45,7 +49,16 @@ export class AdminView {
         <div class="field"><label for="block-reason">Motivo <span>*</span></label><select id="block-reason" name="reason" required aria-describedby="block-reason-error" data-cy="block-reason"><option value="">Selecciona un motivo</option>${BLOCK_REASONS.map((reason) => `<option value="${safe(reason)}">${safe(reason)}</option>`).join('')}</select><p id="block-reason-error" class="field-error" data-cy="block-reason-error"></p></div>
         <button class="button coral full-width" type="submit" data-cy="block-day">Bloquear este día <span aria-hidden="true">↗</span></button><p id="block-submit-error" class="field-error" role="alert" data-cy="block-submit-error"></p>
         </form><p class="block-note">Si la fecha tiene turnos confirmados, el sistema te avisará y no permitirá bloquearla.</p></div></section>
+        <section class="admin-card" aria-labelledby="range-heading"><div class="card-heading"><p class="eyebrow">04 / PAUSA PROLONGADA</p><h2 id="range-heading">Bloquear un rango</h2><p>Ambas fechas quedan incluidas en el bloqueo.</p></div>
+        <div class="block-content"><form class="block-form" id="range-form" novalidate data-cy="block-range-form">
+          <div class="field"><label for="range-start">Desde <span>*</span></label><input type="date" id="range-start" name="startDate" required aria-describedby="range-startDate-error" data-cy="range-start"><p id="range-startDate-error" class="field-error"></p></div>
+          <div class="field"><label for="range-end">Hasta <span>*</span></label><input type="date" id="range-end" name="endDate" required aria-describedby="range-endDate-error" data-cy="range-end"><p id="range-endDate-error" class="field-error" role="alert"></p></div>
+          <div class="field"><label for="range-reason">Categoría <span>*</span></label><select id="range-reason" name="reason" required aria-describedby="range-reason-error" data-cy="range-reason"><option value="">Selecciona una categoría</option>${BLOCK_RANGE_REASONS.map((reason) => `<option value="${safe(reason)}">${safe(reason)}</option>`).join('')}</select><p id="range-reason-error" class="field-error"></p></div>
+          <button class="button coral full-width" type="submit" data-cy="block-range" disabled>Bloquear rango <span aria-hidden="true">↗</span></button><p id="range-submit-error" class="field-error" role="alert" data-cy="range-submit-error"></p>
+        </form><p class="block-note">Si alguna fecha tiene un turno confirmado, no se bloqueará ninguna.</p></div></section>
         <section class="admin-card" aria-labelledby="blocked-heading"><div class="card-heading"><h2 id="blocked-heading">Días bloqueados</h2><p>Estas fechas no admiten nuevas reservas.</p></div><div id="blocked-days" data-cy="blocked-days">${this.renderBlockedDays()}</div></section>
+        <section class="admin-card" aria-labelledby="ranges-heading"><div class="card-heading"><h2 id="ranges-heading">Rangos bloqueados</h2><p>Bloqueos continuos de varios días.</p></div><div id="blocked-ranges" data-cy="blocked-ranges">${this.renderBlockedRanges()}</div></section>
+        <section class="admin-card" aria-labelledby="exceptions-heading"><div class="card-heading"><h2 id="exceptions-heading">Excepciones de horario</h2><p>Turnos afectados por un cambio de atención. Los avisos se registran, pero no se envían correos.</p></div><div id="schedule-exceptions" data-cy="schedule-exceptions">${this.renderExceptions()}</div></section>
         <p class="scope-note">Administración simulada, sin inicio de sesión. En la demo compartida, cualquier persona con el enlace puede cambiar horarios y bloquear fechas.</p>
       </aside>
     </div>`;
@@ -62,12 +75,57 @@ export class AdminView {
     return `<ul class="blocked-list">${this.blockedDays.map((day) => `<li class="blocked-item" data-cy="blocked-day" data-date="${day.date}"><div><strong>${safe(formatDate(day.date, { year: 'numeric' }))}</strong><small>${safe(day.reason)}</small></div><span class="blocked-tag">No disponible</span></li>`).join('')}</ul>`;
   }
 
+  renderBlockedRanges() {
+    if (!this.blockedRanges.length) return '<p class="blocked-empty">No hay rangos bloqueados.</p>';
+    return `<ul class="blocked-list">${this.blockedRanges.map((range) => `<li class="blocked-item" data-cy="blocked-range"><div><strong>${safe(formatDate(range.startDate, { year: 'numeric' }))} a ${safe(formatDate(range.endDate, { year: 'numeric' }))}</strong><small>${safe(range.reason)}</small></div><span class="blocked-tag">No disponible</span></li>`).join('')}</ul>`;
+  }
+
+  renderExceptions() {
+    if (!this.exceptions.bookings.length) return '<p class="blocked-empty">No hay turnos afectados por cambios de horario.</p>';
+    return `<div class="exception-list">${this.exceptions.bookings.map((booking) => {
+      const deadline = booking.deadline ? new Date(booking.deadline).toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' }) : '';
+      const notice = this.exceptions.notifications.some((item) => item.reference === booking.reference);
+      return `<div class="exception-item" data-cy="schedule-exception"><strong>${safe(booking.reference)}</strong><p>${safe(booking.date)} · ${safe(booking.time)} · ${safe(booking.status === 'EXCEPTION' ? 'Excepción' : booking.status === 'CANCELLED' ? 'Cancelado' : 'Reasignado')}</p>
+        ${booking.status === 'EXCEPTION' ? `<p>Reasignar antes del ${safe(deadline)}.</p><form class="exception-form" data-reference="${safe(booking.reference)}" data-cy="reassign-form"><label>Nuevo día <input type="date" name="date" required data-cy="reassign-date"></label><label>Nuevo horario <input type="time" name="time" required data-cy="reassign-time"></label><button class="button primary full-width" type="submit" data-cy="reassign-booking">Reasignar turno</button><p class="field-error" role="alert" data-cy="reassign-error"></p></form>` : ''}
+        ${notice ? '<small>Aviso registrado en la demo; correo no enviado.</small>' : ''}</div>`;
+    }).join('')}</div>`;
+  }
+
+  async refreshExceptions() {
+    this.exceptions = await api('/api/admin/exceptions');
+    this.root.querySelector('#schedule-exceptions').innerHTML = this.renderExceptions();
+  }
+
+  refreshRangeValidity(form, showErrors = true) {
+    const input = Object.fromEntries(new FormData(form));
+    const errors = validateDateRange(input);
+    const end = form.querySelector('[name="endDate"]');
+    if (isValidDate(input.startDate)) {
+      const next = new Date(`${input.startDate}T12:00:00Z`);
+      next.setUTCDate(next.getUTCDate() + 1);
+      end.min = next.toISOString().slice(0, 10);
+    } else end.removeAttribute('min');
+    form.querySelectorAll('[aria-invalid]').forEach((field) => field.removeAttribute('aria-invalid'));
+    for (const name of ['startDate', 'endDate', 'reason']) form.querySelector(`#range-${name}-error`).textContent = '';
+    if (showErrors) {
+      for (const [name, message] of Object.entries(errors)) {
+        form.querySelector(`[name="${name}"]`)?.setAttribute('aria-invalid', 'true');
+        form.querySelector(`#range-${name}-error`).textContent = message;
+      }
+    }
+    form.querySelector('[type="submit"]').disabled = Object.keys(errors).length > 0;
+  }
+
   redrawDay(key) {
     this.root.querySelector(`[data-day-row="${key}"]`).outerHTML = this.renderDay(WEEK_DAYS.find((day) => day.key === key));
   }
 
   onChange(event) {
     const input = event.target;
+    if (input.closest('#range-form') && !this.busy) {
+      input.closest('form').querySelector('#range-submit-error').textContent = '';
+      this.refreshRangeValidity(input.closest('form')); return;
+    }
     if (input.dataset.cy !== 'working-day-toggle' || this.busy) return;
     const day = this.weeklyHours[input.dataset.day];
     day.enabled = input.checked;
@@ -78,6 +136,10 @@ export class AdminView {
 
   onInput(event) {
     const input = event.target;
+    if (input.closest('#range-form') && !this.busy) {
+      input.closest('form').querySelector('#range-submit-error').textContent = '';
+      this.refreshRangeValidity(input.closest('form')); return;
+    }
     if (input.closest('#quick-settings-form')) {
       input.closest('form').classList.remove('settings-saved');
       return;
@@ -131,6 +193,7 @@ export class AdminView {
       button.textContent = 'Guardando…';
       try {
         await api('/api/admin/availability', { method: 'PUT', body: { weeklyHours: this.weeklyHours } });
+        await this.refreshExceptions();
         toast('Horarios guardados correctamente.');
         this.onSaved();
       } catch (error) { this.showScheduleErrors(error.fields || {}); this.root.querySelector('#schedule-error').textContent = error.message; toast(error.message, 'error'); }
@@ -174,6 +237,39 @@ export class AdminView {
         if (error.code === 'BOOKING_CONFLICT') { showConflict(error.message); toast('El día tiene turnos confirmados. No se guardaron cambios.', 'error'); }
         else { displayFieldErrors(form, error.fields || {}, 'block-'); form.querySelector('#block-submit-error').textContent = error.message; toast(error.message, 'error'); }
       } finally { button.disabled = false; button.innerHTML = 'Bloquear este día <span aria-hidden="true">↗</span>'; this.busy = false; }
+    } else if (form.id === 'range-form') {
+      const input = Object.fromEntries(new FormData(form));
+      const errors = validateDateRange(input);
+      displayFieldErrors(form, errors, 'range-');
+      if (Object.keys(errors).length) return;
+      this.busy = true;
+      const button = form.querySelector('[type="submit"]');
+      button.disabled = true; button.textContent = 'Guardando…';
+      let saved = false;
+      try {
+        const range = await api('/api/admin/blocked-ranges', { method: 'POST', body: input });
+        this.blockedRanges.push(range);
+        this.blockedRanges.sort((left, right) => left.startDate.localeCompare(right.startDate));
+        this.root.querySelector('#blocked-ranges').innerHTML = this.renderBlockedRanges();
+        form.reset(); saved = true; toast('Rango bloqueado exitosamente.'); this.onSaved();
+      } catch (error) {
+        if (error.code === 'BOOKING_CONFLICT') showConflict(error.message);
+        else displayFieldErrors(form, error.fields || {}, 'range-');
+        form.querySelector('#range-submit-error').textContent = error.message;
+        toast(error.message, 'error');
+      } finally { button.innerHTML = 'Bloquear rango <span aria-hidden="true">↗</span>'; this.busy = false; this.refreshRangeValidity(form, !saved); }
+    } else if (form.matches('.exception-form')) {
+      const input = Object.fromEntries(new FormData(form));
+      const button = form.querySelector('[type="submit"]');
+      this.busy = true; button.disabled = true;
+      try {
+        await api(`/api/admin/exceptions/${encodeURIComponent(form.dataset.reference)}/reassign`, { method: 'POST', body: input });
+        await this.refreshExceptions();
+        toast('Turno reasignado correctamente.'); this.onSaved();
+      } catch (error) {
+        form.querySelector('[data-cy="reassign-error"]').textContent = error.message;
+        toast(error.message, 'error');
+      } finally { button.disabled = false; this.busy = false; }
     }
   }
 }

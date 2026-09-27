@@ -20,7 +20,7 @@ export function createSeedState() {
       enabled: index < 5,
       ranges: index < 5 ? [{ start: '09:00', end: '13:00' }, { start: '15:00', end: '18:00' }] : [],
     }])),
-    blockedDays: [], holds: [], bookings: [],
+    blockedDays: [], blockedRanges: [], holds: [], bookings: [], notificationOutbox: [],
     quickSettings: { ...DEFAULT_QUICK_SETTINGS },
   };
 }

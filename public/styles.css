@@ -183,6 +183,15 @@
 .blocked-item small{display:block;font-size:10px;color:var(--muted);margin-top:3px}
 .blocked-tag{font-size:9px;background:var(--coral-soft);color:#99624a;border-radius:5px;padding:4px 7px}
 .blocked-empty{padding:23px;color:var(--muted);font-size:11px;line-height:1.75;margin:0}
+.exception-list{padding:0 23px}
+.exception-item{padding:18px 0;border-bottom:1px solid var(--line);font-size:11px}
+.exception-item:last-child{border-bottom:0}
+.exception-item strong{display:block;font-size:12px}
+.exception-item p{margin:5px 0;color:var(--muted)}
+.exception-item small{display:block;color:var(--muted);margin-top:10px}
+.exception-form{display:flex;flex-direction:column;gap:10px;margin-top:14px}
+.exception-form label{display:flex;flex-direction:column;gap:5px;font-size:11px}
+.exception-form input{width:100%;min-height:44px;padding:8px;border:1px solid #d5dacd;border-radius:8px;background:#fffefa;color:var(--ink)}
 .scope-note{font-size:10px;color:var(--muted);line-height:1.9;padding:0 8px}
 .toast{position:fixed;top:25px;right:25px;max-width:min(420px,calc(100vw - 32px));padding:17px 21px;border-radius:12px;background:#3e6b4c;color:white;box-shadow:0 10px 35px #173a3630;font-size:12px;z-index:1000;display:flex;align-items:center;gap:12px;animation:toast-in .2s ease-out}
 .toast.error{background:#a33d35}

@@ -3,8 +3,8 @@ import { readFile } from 'node:fs/promises';
 import { randomBytes } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
-import { isValidMonth, localDate } from '../public/shared/dates.js';
-import { blockDay, confirmBooking, createHold, DomainError, findHold, monthlyAvailability, quickSettingsOf, updateQuickSettings, updateSchedule } from './domain.js';
+import { datesInMonth, isValidMonth, localDate } from '../public/shared/dates.js';
+import { blockDateRange, blockDay, confirmBooking, createHold, DomainError, exceptionSummary, expireExceptions, findHold, guestReassignmentSlots, monthlyAvailability, quickSettingsOf, reassignException, reassignGuestException, updateQuickSettings, updateSchedule } from './domain.js';
 import { DEMO_EVENT, DEMO_PROFILE } from './seed.js';
 
 const PUBLIC_DIRECTORY = fileURLToPath(new URL('../public/', import.meta.url));
@@ -36,6 +36,12 @@ async function readJson(request) {
 
 export function createApplication({ store, trustedHosts, clock = Date.now, createToken = () => randomBytes(32).toString('hex') }) {
   const cloudHosts = trustedHosts ? new Set(trustedHosts) : null;
+  async function currentState(now) {
+    const state = await store.read();
+    if (!state.bookings.some((booking) => booking.status === 'EXCEPTION' && booking.exceptionDeadline <= now)) return state;
+    await store.mutate((candidate) => expireExceptions(candidate, now));
+    return store.read();
+  }
   return createServer(async (request, response) => {
     const send = (status, data) => {
       response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
@@ -62,11 +68,15 @@ export function createApplication({ store, trustedHosts, clock = Date.now, creat
         const month = url.searchParams.get('month');
         if (!isValidMonth(month)) throw new DomainError('El mes debe tener formato AAAA-MM.');
         const now = clock();
-        return send(200, { month, days: monthlyAvailability(await store.read(), month, now), serverNow: now, today: localDate(now) });
+        return send(200, { month, days: monthlyAvailability(await currentState(now), month, now), serverNow: now, today: localDate(now) });
       }
       if (method === 'GET' && path === '/api/admin/availability') {
-        const state = await store.read();
-        return send(200, { weeklyHours: state.weeklyHours, blockedDays: state.blockedDays, quickSettings: quickSettingsOf(state) });
+        const state = await currentState(clock());
+        return send(200, { weeklyHours: state.weeklyHours, blockedDays: state.blockedDays,
+          blockedRanges: state.blockedRanges || [], quickSettings: quickSettingsOf(state) });
+      }
+      if (method === 'GET' && path === '/api/admin/exceptions') {
+        return send(200, exceptionSummary(await currentState(clock())));
       }
       if (method === 'PUT' && path === '/api/admin/quick-settings') {
         const body = await readJson(request);
@@ -74,18 +84,54 @@ export function createApplication({ store, trustedHosts, clock = Date.now, creat
       }
       if (method === 'PUT' && path === '/api/admin/availability') {
         const body = await readJson(request);
-        return send(200, await store.mutate((state) => updateSchedule(state, body.weeklyHours)));
+        const now = clock();
+        return send(200, await store.mutate((state) => {
+          expireExceptions(state, now);
+          return updateSchedule(state, body.weeklyHours, now);
+        }));
       }
       if (method === 'POST' && path === '/api/admin/blocked-days') {
         const body = await readJson(request);
         return send(201, await store.mutate((state) => blockDay(state, body)));
       }
+      if (method === 'POST' && path === '/api/admin/blocked-ranges') {
+        const body = await readJson(request);
+        return send(201, await store.mutate((state) => blockDateRange(state, body)));
+      }
+      const exceptionRoute = path.match(/^\/api\/admin\/exceptions\/(AY-[A-Z0-9]+)\/reassign$/);
+      if (exceptionRoute && method === 'POST') {
+        const body = await readJson(request);
+        const now = clock();
+        return send(200, await store.mutate((state) => reassignException(state, exceptionRoute[1], body, now)));
+      }
+      const guestReassignmentRoute = path.match(/^\/api\/bookings\/access\/([a-f0-9]{64})\/(availability|reassign)$/);
+      if (guestReassignmentRoute && method === 'GET' && guestReassignmentRoute[2] === 'availability') {
+        const month = url.searchParams.get('month');
+        if (!isValidMonth(month)) throw new DomainError('El mes debe tener formato AAAA-MM.');
+        const now = clock();
+        const state = await currentState(now);
+        return send(200, { month, days: datesInMonth(month).map((date) => ({
+          date, slots: guestReassignmentSlots(state, guestReassignmentRoute[1], date, now),
+        })), serverNow: now, today: localDate(now) });
+      }
+      if (guestReassignmentRoute && method === 'POST' && guestReassignmentRoute[2] === 'reassign') {
+        const body = await readJson(request);
+        const now = clock();
+        return send(200, await store.mutate((state) => reassignGuestException(state, guestReassignmentRoute[1], body, now)));
+      }
       if (method === 'POST' && path === '/api/holds') {
         const body = await readJson(request);
-        return send(201, await store.mutate((state) => createHold(state, body, clock(), createToken())));
+        const now = clock();
+        return send(201, await store.mutate((state) => {
+          expireExceptions(state, now);
+          return createHold(state, body, now, createToken());
+        }));
       }
       const holdRoute = path.match(/^\/api\/holds\/([a-f0-9]{64})$/);
-      if (holdRoute && method === 'GET') return send(200, findHold(await store.read(), holdRoute[1], clock()));
+      if (holdRoute && method === 'GET') {
+        const now = clock();
+        return send(200, findHold(await currentState(now), holdRoute[1], now));
+      }
       if (holdRoute && method === 'DELETE') {
         await store.mutate((state) => {
           state.holds = state.holds.filter((hold) => hold.token !== holdRoute[1]);
@@ -96,7 +142,11 @@ export function createApplication({ store, trustedHosts, clock = Date.now, creat
       if (method === 'POST' && path === '/api/bookings') {
         const body = await readJson(request);
         if (typeof body.holdToken !== 'string' || !/^[a-f0-9]{64}$/.test(body.holdToken)) throw new DomainError('La selección del horario no es válida.');
-        return send(201, await store.mutate((state) => confirmBooking(state, body.holdToken, body.guest || {}, clock(), `AY-${randomBytes(5).toString('hex').toUpperCase()}`)));
+        const now = clock();
+        return send(201, await store.mutate((state) => {
+          expireExceptions(state, now);
+          return confirmBooking(state, body.holdToken, body.guest || {}, now, `AY-${randomBytes(5).toString('hex').toUpperCase()}`);
+        }));
       }
       if ((method === 'GET' || method === 'HEAD') && STATIC_FILES.has(path)) {
         const [file, mime] = STATIC_FILES.get(path);
