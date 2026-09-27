@@ -4,7 +4,7 @@ import { randomBytes } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { isValidMonth, localDate } from '../public/shared/dates.js';
-import { blockDay, confirmBooking, createHold, DomainError, findHold, monthlyAvailability, updateSchedule } from './domain.js';
+import { blockDay, confirmBooking, createHold, DomainError, findHold, monthlyAvailability, quickSettingsOf, updateQuickSettings, updateSchedule } from './domain.js';
 import { DEMO_EVENT, DEMO_PROFILE } from './seed.js';
 
 const PUBLIC_DIRECTORY = fileURLToPath(new URL('../public/', import.meta.url));
@@ -65,8 +65,12 @@ export function createApplication({ store, trustedHosts, clock = Date.now, creat
         return send(200, { month, days: monthlyAvailability(await store.read(), month, now), serverNow: now, today: localDate(now) });
       }
       if (method === 'GET' && path === '/api/admin/availability') {
-        const { weeklyHours, blockedDays } = await store.read();
-        return send(200, { weeklyHours, blockedDays });
+        const state = await store.read();
+        return send(200, { weeklyHours: state.weeklyHours, blockedDays: state.blockedDays, quickSettings: quickSettingsOf(state) });
+      }
+      if (method === 'PUT' && path === '/api/admin/quick-settings') {
+        const body = await readJson(request);
+        return send(200, await store.mutate((state) => updateQuickSettings(state, body)));
       }
       if (method === 'PUT' && path === '/api/admin/availability') {
         const body = await readJson(request);

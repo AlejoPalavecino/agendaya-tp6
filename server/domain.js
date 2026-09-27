@@ -1,6 +1,6 @@
 import { datesInMonth, dayKey, isValidDate, localDate, minutesToTime, slotTimestamp, timeToMinutes } from '../public/shared/dates.js';
-import { normalizeSchedule, validateBlock, validateGuest, validateSchedule } from '../public/shared/validation.js';
-import { DEMO_EVENT } from './seed.js';
+import { normalizeSchedule, validateBlock, validateGuest, validateQuickSettings, validateSchedule } from '../public/shared/validation.js';
+import { DEFAULT_QUICK_SETTINGS, DEMO_EVENT } from './seed.js';
 
 export const HOLD_DURATION_MS = 15 * 60 * 1000;
 
@@ -20,33 +20,56 @@ function requireValid(errors) {
 
 export function isLiveHold(hold, now) { return hold.expiresAt > now; }
 
+// Existing schema-v1 files predate quick settings; use defaults until first save.
+export function quickSettingsOf(state) {
+  return { ...DEFAULT_QUICK_SETTINGS, ...state.quickSettings };
+}
+
+export function updateQuickSettings(state, settings) {
+  requireValid(validateQuickSettings(settings));
+  state.quickSettings = {
+    maxDailyBookings: settings.maxDailyBookings,
+    intervalMinutes: settings.intervalMinutes,
+    leadHours: settings.leadHours,
+  };
+  return { quickSettings: state.quickSettings };
+}
+
 export function scheduledSlots(state, date, now) {
   if (!isValidDate(date) || date < localDate(now)) return [];
   if (state.blockedDays.some((blocked) => blocked.date === date)) return [];
   const day = state.weeklyHours[dayKey(date)];
   if (!day.enabled) return [];
-  const slots = new Set();
-  for (const range of day.ranges) {
+  const { intervalMinutes, leadHours } = quickSettingsOf(state);
+  const slots = [];
+  let nextStart = 0;
+  for (const range of [...day.ranges].sort((left, right) => timeToMinutes(left.start) - timeToMinutes(right.start))) {
     const end = timeToMinutes(range.end);
-    for (let minute = timeToMinutes(range.start); minute + DEMO_EVENT.duration <= end; minute += DEMO_EVENT.duration) {
+    for (let minute = Math.max(timeToMinutes(range.start), nextStart); minute + DEMO_EVENT.duration <= end; minute += DEMO_EVENT.duration + intervalMinutes) {
       const time = minutesToTime(minute);
-      if (slotTimestamp(date, time) > now) slots.add(time);
+      if (slotTimestamp(date, time) >= now + leadHours * 60 * 60 * 1000) slots.push(time);
+      nextStart = minute + DEMO_EVENT.duration + intervalMinutes;
     }
   }
-  return [...slots].sort();
+  return slots;
 }
 
-function overlaps(date, time, record) {
+function overlaps(date, time, record, intervalMinutes) {
   if (record.date !== date) return false;
   const start = timeToMinutes(time);
   const otherStart = timeToMinutes(record.time);
-  return start < otherStart + (record.duration || DEMO_EVENT.duration) && start + DEMO_EVENT.duration > otherStart;
+  return start < otherStart + (record.duration || DEMO_EVENT.duration) + intervalMinutes
+    && start + DEMO_EVENT.duration + intervalMinutes > otherStart;
 }
 
 export function availableSlots(state, date, now, ownToken = null) {
+  const { maxDailyBookings, intervalMinutes } = quickSettingsOf(state);
+  const confirmedCount = state.bookings.filter((booking) => booking.date === date).length;
+  const activeHoldCount = state.holds.filter((hold) => hold.date === date && hold.token !== ownToken && isLiveHold(hold, now)).length;
+  if (confirmedCount + activeHoldCount >= maxDailyBookings) return [];
   return scheduledSlots(state, date, now).filter((time) => {
-    const booked = state.bookings.some((booking) => overlaps(date, time, booking));
-    const held = state.holds.some((hold) => hold.token !== ownToken && isLiveHold(hold, now) && overlaps(date, time, hold));
+    const booked = state.bookings.some((booking) => overlaps(date, time, booking, intervalMinutes));
+    const held = state.holds.some((hold) => hold.token !== ownToken && isLiveHold(hold, now) && overlaps(date, time, hold, intervalMinutes));
     return !booked && !held;
   });
 }

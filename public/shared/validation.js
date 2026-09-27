@@ -2,6 +2,21 @@ import { WEEK_DAYS, isValidDate, timeToMinutes } from './dates.js';
 
 export const BLOCK_REASONS = ['Feriado', 'Motivo Personal'];
 
+export function validateQuickSettings(settings) {
+  const errors = {};
+  const values = settings || {};
+  const limits = [
+    ['maxDailyBookings', 1, Infinity, 'Ingresa un máximo diario entero mayor que 0.'],
+    ['intervalMinutes', 0, 120, 'El intervalo debe ser un número entero entre 0 y 120 minutos.'],
+    ['leadHours', 1, 72, 'La antelación debe ser un número entero entre 1 y 72 horas.'],
+  ];
+  for (const [name, min, max, message] of limits) {
+    const value = values[name];
+    if (!Number.isSafeInteger(value) || value < min || value > max) errors[name] = message;
+  }
+  return errors;
+}
+
 export function validateSchedule(weeklyHours) {
   const errors = {};
   if (!weeklyHours || typeof weeklyHours !== 'object' || Array.isArray(weeklyHours)) {

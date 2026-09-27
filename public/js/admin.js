@@ -1,13 +1,14 @@
 import { api } from './api.js';
 import { displayFieldErrors, escapeHtml as safe, showConflict, toast } from './ui.js';
 import { formatDate, minutesToTime, timeToMinutes, WEEK_DAYS } from '../shared/dates.js';
-import { BLOCK_REASONS, validateBlock, validateSchedule } from '../shared/validation.js';
+import { BLOCK_REASONS, validateBlock, validateQuickSettings, validateSchedule } from '../shared/validation.js';
 
 export class AdminView {
   constructor(onSaved) {
     this.onSaved = onSaved;
     this.weeklyHours = null;
     this.blockedDays = [];
+    this.quickSettings = null;
     this.busy = false;
     this.root = document.getElementById('admin-content');
     this.root.addEventListener('change', (event) => this.onChange(event));
@@ -20,6 +21,7 @@ export class AdminView {
     const result = await api('/api/admin/availability');
     this.weeklyHours = result.weeklyHours;
     this.blockedDays = result.blockedDays;
+    this.quickSettings = result.quickSettings;
     this.render();
   }
 
@@ -30,7 +32,14 @@ export class AdminView {
       <div class="schedule-footer"><p>Hora local de Buenos Aires. Los turnos ya confirmados se conservan.</p><button type="submit" class="button primary" data-cy="save-schedule">Guardar horarios <span aria-hidden="true">↗</span></button></div>
       <p id="schedule-error" class="field-error" role="alert" data-cy="schedule-error"></p></form></section>
       <aside class="admin-side">
-        <section class="admin-card" aria-labelledby="block-heading"><div class="card-heading"><p class="eyebrow">02 / UNA PAUSA NECESARIA</p><h2 id="block-heading">Bloquear un día</h2><p>Deja una fecha fuera de tu agenda pública.</p></div>
+        <section class="admin-card" aria-labelledby="quick-settings-heading"><div class="card-heading"><p class="eyebrow">02 / AJUSTES DE RESERVAS</p><h2 id="quick-settings-heading">Configuraciones rápidas</h2><p>Define los límites que se aplican de inmediato al calendario público.</p></div>
+        <form class="quick-settings-form" id="quick-settings-form" novalidate data-cy="quick-settings-form">
+          <div class="field"><label for="max-daily-bookings">Máximo de turnos por día <span>*</span></label><input id="max-daily-bookings" name="maxDailyBookings" type="number" min="1" step="1" required value="${this.quickSettings.maxDailyBookings}" aria-describedby="quick-maxDailyBookings-error" data-cy="max-daily-bookings"><p id="quick-maxDailyBookings-error" class="field-error" data-cy="max-daily-bookings-error"></p></div>
+          <div class="field"><label for="interval-minutes">Intervalo entre turnos (minutos) <span>*</span></label><input id="interval-minutes" name="intervalMinutes" type="number" min="0" max="120" step="1" required value="${this.quickSettings.intervalMinutes}" aria-describedby="quick-intervalMinutes-error" data-cy="interval-minutes"><p id="quick-intervalMinutes-error" class="field-error" data-cy="interval-minutes-error"></p></div>
+          <div class="field"><label for="lead-hours">Antelación mínima (horas) <span>*</span></label><input id="lead-hours" name="leadHours" type="number" min="1" max="72" step="1" required value="${this.quickSettings.leadHours}" aria-describedby="quick-leadHours-error" data-cy="lead-hours"><p id="quick-leadHours-error" class="field-error" data-cy="lead-hours-error"></p></div>
+          <button class="button primary full-width" type="submit" data-cy="save-quick-settings">Guardar configuración</button><p id="quick-submit-error" class="field-error" role="alert" data-cy="quick-submit-error"></p>
+        </form></section>
+        <section class="admin-card" aria-labelledby="block-heading"><div class="card-heading"><p class="eyebrow">03 / UNA PAUSA NECESARIA</p><h2 id="block-heading">Bloquear un día</h2><p>Deja una fecha fuera de tu agenda pública.</p></div>
         <div class="block-content"><form class="block-form" id="block-form" novalidate data-cy="block-day-form">
         <div class="field"><label for="block-date">Fecha <span>*</span></label><input type="date" id="block-date" name="date" required aria-describedby="block-date-error" data-cy="block-date"><p id="block-date-error" class="field-error" data-cy="block-date-error"></p></div>
         <div class="field"><label for="block-reason">Motivo <span>*</span></label><select id="block-reason" name="reason" required aria-describedby="block-reason-error" data-cy="block-reason"><option value="">Selecciona un motivo</option>${BLOCK_REASONS.map((reason) => `<option value="${safe(reason)}">${safe(reason)}</option>`).join('')}</select><p id="block-reason-error" class="field-error" data-cy="block-reason-error"></p></div>
@@ -69,6 +78,10 @@ export class AdminView {
 
   onInput(event) {
     const input = event.target;
+    if (input.closest('#quick-settings-form')) {
+      input.closest('form').classList.remove('settings-saved');
+      return;
+    }
     if (!input.dataset.edge || this.busy) return;
     this.weeklyHours[input.dataset.day].ranges[Number(input.dataset.index)][input.dataset.edge] = input.value;
   }
@@ -125,6 +138,25 @@ export class AdminView {
         controls.forEach((element) => { element.disabled = element.dataset.wasDisabled === 'true'; });
         button.innerHTML = 'Guardar horarios <span aria-hidden="true">↗</span>'; this.busy = false;
       }
+    } else if (form.id === 'quick-settings-form') {
+      const settings = Object.fromEntries([...new FormData(form)].map(([key, value]) => [key, value === '' ? null : Number(value)]));
+      const errors = validateQuickSettings(settings);
+      displayFieldErrors(form, errors, 'quick-');
+      if (Object.keys(errors).length) { toast('No se guardaron los cambios. Revisa la configuración.', 'error'); return; }
+      this.busy = true;
+      const button = form.querySelector('[type="submit"]');
+      button.disabled = true; button.textContent = 'Guardando…';
+      try {
+        const result = await api('/api/admin/quick-settings', { method: 'PUT', body: settings });
+        this.quickSettings = result.quickSettings;
+        form.classList.add('settings-saved');
+        toast('Configuración guardada correctamente.');
+        this.onSaved();
+      } catch (error) {
+        displayFieldErrors(form, error.fields || {}, 'quick-');
+        form.querySelector('#quick-submit-error').textContent = error.message;
+        toast(error.message, 'error');
+      } finally { button.disabled = false; button.textContent = 'Guardar configuración'; this.busy = false; }
     } else if (form.id === 'block-form') {
       const input = Object.fromEntries(new FormData(form));
       const errors = validateBlock(input);

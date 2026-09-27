@@ -171,6 +171,8 @@
 .schedule-footer p{font-size:10px;color:var(--muted);margin:0;max-width:240px}
 .admin-side{display:flex;flex-direction:column;gap:20px}
 .block-content{padding:22px 23px}
+.quick-settings-form{display:flex;flex-direction:column;gap:16px;padding:22px 23px;border:2px solid transparent;transition:border-color .2s}
+.quick-settings-form.settings-saved{border-color:#3e6b4c;background:#f4f9f2}
 .block-form{display:flex;flex-direction:column;gap:16px}
 .block-form .button{margin-top:4px}
 .block-note{font-size:10px;color:var(--muted);line-height:1.75;margin:15px 0 0}

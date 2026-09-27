@@ -1,0 +1,44 @@
+# TP6 coverage and automated testing
+
+## Objective and authorization
+
+Verify the AgendaYA demo against the group's M02/M04 functional requirements and ten user stories, implement the missing demo behavior without unrelated product scope, execute the TP6 test obligations for eight members, and prepare an evidence-based Google Doc in the requested Drive folder. The user authorized local changes and access to the connected Trello/Drive sessions. The user chose the Trello/TP2 acceptance criteria when those conflict with TP1 or a story's conversation text.
+
+## Problem and current evidence
+
+- The clean starting commit is `6094700` on `main`; this feature uses `codex/tp6-coverage-tests`.
+- The demo currently covers US_001, US_003, US_008, and US_009. US_002, US_004, US_005, US_007 are missing; US_006 and US_010 are partial. It has no automated tests or Cypress installation.
+- The operative assignment is `Práctica/TP6/TP Nº6 - Testing Automatizado.pdf`: two complete module flows, stable `data-cy`, visible validation/confirmation, at least one Cypress E2E and five unit tests per member, at least two unit-tested behaviors per member, executable evidence, AI-use analysis, reflection, and lessons learned.
+- The eight names are in the group's TP1/TP5 reports. AI-authored test blocks may be allocated for each member's review and defense, but must not be represented as individually authored by them without their confirmation.
+- TP1 and live Trello use different RF numbering in places. Trace by story behavior and preserve source-specific IDs rather than silently renumbering.
+- US_006's conversation contradicts its acceptance scenario. Per the user's decision, implement/test the acceptance behavior, while preserving confirmed reservations and recording any notification simulation honestly.
+- US_004's acceptance criteria permit `Vacaciones` and `Licencia Médica` for ranges, while TP1 has a different category list. Use the story's range categories; keep the single-day categories from US_003.
+
+## Scope and constraints
+
+- In scope: the group's M02/M04 RF and US_001–US_010 as a minimal academic demo; no unrelated modules, payments, profile CRUD, or production infrastructure.
+- Existing backend is a local JSON or Redis-backed mini service. TP6 permits mock backend/storage, so external email may be simulated but must not be claimed as delivered. Keep guest data out of public APIs.
+- For browser tests, use Cypress with independent fixture/reset state and `data-cy` selectors. For unit tests, use Node's built-in `node --test` runner against pure rules and injected time/state. The chosen test-first mode is inferred from `docs/traceability.md`'s recorded prior TDD preference; verify RED, GREEN, and REFACTOR for behavior changes. Exact commands and outcomes must be recorded.
+- Native RDD mode is OFF by explicit global preference: an unsandboxed read-only `gentle-ai review mode status --cwd <repo>` returned `off (decided by global)`. Do not start native review; record `disabled/unmanaged` at closure. Ordinary checks remain required.
+- CodeGraph lazy initialization failed with `Access is denied`; filesystem inspection is the documented fallback.
+- The Engram mirror under `odd/tp6-coverage-and-automated-tests/tasks` is pending because Engram rejects the runtime session as unknown. Preserve this file as the recovery source and retry the mirror when available.
+
+## Delivery
+
+- Forecast: more than 400 authored changed lines, excluding generated artifacts. This is a review-slicing heuristic, not a code-size cap; do not omit tests, docs, or readable code to fit it.
+- Delivery strategy: `ask-on-risk` (default). Chain strategy: `stacked-to-main`, selected by the user. Keep each slice independently reviewable for staged integration into `main`; record its exact commit boundary. No push, PR, or merge is authorized by local implementation alone.
+- Running authored changed lines: 0. Last reviewed boundary: `6094700`.
+
+## Tasks
+
+- [x] **T1 — M02 quick settings and availability rules.** Implemented daily cap, interval buffer, minimum lead time, validated/persisted quick settings, and immediate public availability updates. Route: delegated direct; domain, validation, UI, and server were non-trivial files (writer trigger). RED: `node --test test/quick-settings.test.js` failed on missing export before implementation; an adjacent-range regression then failed 10/11 before the spacing fix. GREEN: `node --test test/quick-settings.test.js` passed 12/12, independently repeated by parent; `node --check` passed for all 15 current server/public/test JS files; `git diff --check` passed. Browser smoke at local port 3177 observed invalid 130-minute input/red toast, valid interval 15 + lead 24/success toast, and 09:00/09:45/10:30 public slots. Rollback: six modified source files plus `test/quick-settings.test.js`, without unrelated behavior. Commit: pending. RDD: disabled/unmanaged (global OFF).
+- [ ] **T2 — M02 date ranges and schedule exceptions.** Implement US_004 inclusive range block with conflict rollback, and US_006 exception marking/visible notification behavior per acceptance criteria; preserve existing US_001/003. Acceptance: valid and invalid ranges, conflict dates, overlapping schedules, existing bookings, and expiry/notice behavior are observed. Route: delegated direct; domain, UI, server, and storage are non-trivial files. RED/GREEN/REFACTOR evidence: pending. Commit: pending. RDD assessment: pending.
+- [ ] **T3 — M04 public flow completeness.** Complete US_010 profile/event presentation and observable notification/error behavior for M04 booking without pretending mock email is external delivery; retain 15-minute hold, guest validation, privacy boundary, and booking confirmation. Acceptance: full guest flow and error paths verified in browser/API. Route: delegated direct; UI, domain, and server are non-trivial files. RED/GREEN/REFACTOR evidence: pending. Commit: pending. RDD assessment: pending.
+- [ ] **T4 — Unit tests for eight members.** Write and execute at least 40 distinct unit tests, grouped into eight proposed five-test blocks with at least two independent behaviors and normal/boundary/invalid cases per block. Document AI prompt, generated output, edits, and critical evaluation; do not fabricate individual authorship. Acceptance: runnable command and passing/failing summary, per-block behavior map. Route: delegated direct; multiple non-trivial test files (writer trigger). RED/GREEN/REFACTOR evidence: pending. Commit: pending. RDD assessment: pending.
+- [ ] **T5 — Cypress E2E and execution evidence.** Write and run at least eight distinct full-flow E2E tests, one proposed per member, including success, invalid input, unavailable-slot/conflict paths; Arrange/Act/Assert comments; screenshots or videos; clear result and failure analysis. Acceptance: repeatable headless command and actual evidence. Route: delegated direct; Cypress specs/config and test harness are non-trivial files. Verification: pending. Commit: pending. RDD assessment: pending.
+- [ ] **T6 — Reconcile traceability and deliver report.** Update English repo instructions/traceability with exact coverage, tests, limits, and run commands. Produce a Spanish Google Doc in folder `1aDPlreF5oe-dR-WXUng2I8HzhdiEDgM6`, using TP1/TP5 report style, with every TP6-required section in order, real links/code/evidence, AI-use critique, reflection, lessons learned, and honest contributor allocation. Acceptance: read back local docs, Google Doc content, folder location, and all evidence. Route: delegated direct for non-trivial local docs; Google Doc authoring via the connector. Verification: pending. Commit: pending for local docs. RDD assessment: pending.
+
+## Current verification and next step
+
+- Baseline: all 16 tracked JavaScript files pass `node --check`; no tests existed. Node 24 works. The system npm launcher is broken, but bundled `pnpm` works.
+- Next: execute T1 through T6 as independent reviewable work units, checking off only observed outcomes and recording exact commits/checks. Reconcile this file and its Engram mirror after every task; mirror currently pending.

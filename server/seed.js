@@ -9,6 +9,10 @@ export const DEMO_EVENT = {
   format: 'Encuentro virtual', timezone: 'America/Argentina/Buenos_Aires',
 };
 
+export const DEFAULT_QUICK_SETTINGS = Object.freeze({
+  maxDailyBookings: 8, intervalMinutes: 0, leadHours: 1,
+});
+
 export function createSeedState() {
   return {
     schemaVersion: 1,
@@ -17,5 +21,6 @@ export function createSeedState() {
       ranges: index < 5 ? [{ start: '09:00', end: '13:00' }, { start: '15:00', end: '18:00' }] : [],
     }])),
     blockedDays: [], holds: [], bookings: [],
+    quickSettings: { ...DEFAULT_QUICK_SETTINGS },
   };
 }
