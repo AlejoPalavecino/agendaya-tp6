@@ -1,25 +1,28 @@
 # AgendaYA — Trabajo Práctico N.º 6: Testing Automatizado
 
-> Fuente de trabajo para el documento de Google del Grupo 01. Conserva el orden obligatorio de la sección 10.2 del enunciado. Los rótulos de integrantes son una **distribución propuesta para revisión y defensa**, no una declaración de autoría individual. Los enlaces locales al código deberán sustituirse por enlaces de GitHub después de publicar esta rama.
+Este texto reúne el contenido del informe del Grupo 01 en el orden solicitado por la sección 10.2 del enunciado. Los bloques asignados a integrantes son una **propuesta para revisar y defender los tests**, no una declaración de autoría individual.
 
 ## 1. Carátula
 
 **AGENDA YA**
 
 **Ingeniería y Calidad de Software — Grupo 01 — Módulos 02 y 04**
+
 **Trabajo Práctico N.º 6: Testing Automatizado**
 
 **Integrantes (según informes TP1 y TP5):** Valentin Mendez, Facundo Rodriguez, Alvaro Tapia, Luciano Romero, Augusto Berloin, Martin Flores, Valentin Fornes y Alejo Palavecino.
 
-**Fecha de este borrador:** 27/09/2026. **Fecha de entrega y validación del equipo:** pendiente.
+**Fecha de elaboración:** 27/09/2026. La entrega y la validación del equipo están pendientes.
 
 ## 2. Enlace al repositorio Git
 
-**Repositorio configurado en Git:** [agendaya-tp6](https://github.com/AlejoPalavecino/agendaya-tp6). **Estado de publicación:** la rama de trabajo `codex/tp6-coverage-tests` todavía es local; no se afirma que los cambios y pruebas nuevos estén disponibles en GitHub. El historial local contiene más de los tres commits descriptivos pedidos; entre los trabajos relevantes están `8b50e11` (configuraciones rápidas), `1ead3a0` (rangos y excepciones), `9ac2682` (catálogo y avisos simulados), `03e8878` (40 casos unitarios) y `7f1aac6` (ocho recorridos Cypress). Antes de entregar, el equipo deberá publicar la rama o integrar las partes independientes a `main`, sustituir los enlaces locales al código por enlaces al commit publicado y confirmar el historial remoto.
+**Repositorio:** [agendaya-tp6](https://github.com/AlejoPalavecino/agendaya-tp6). El código y el historial de este trabajo están publicados en la [rama `codex/tp6-coverage-tests`](https://github.com/AlejoPalavecino/agendaya-tp6/tree/codex/tp6-coverage-tests), separada de `main`. La rama todavía no se integró a `main` y no se abrió un pull request.
+
+El historial incluye commits separados para configuraciones rápidas (`8b50e11`), rangos y excepciones (`1ead3a0`), catálogo y avisos simulados (`9ac2682`), pruebas unitarias (`03e8878`) y recorridos Cypress (`7f1aac6`). También están documentadas las pruebas y sus resultados (`988407c`).
 
 ## 3. Tarea A — Frontend mínimo de AgendaYA
 
-Se implementó una demo navegable con interfaz responsiva en HTML, CSS y JavaScript y un minibackend Node. El módulo M02 permite configurar horarios, límites y bloqueos; M04 permite elegir una prestación, fecha y hora, mantener el horario por 15 minutos e ingresar los datos del invitado para confirmar. El almacenamiento local es JSON y la configuración de nube usa Redis; el enunciado permite un backend simulado. Los controles usados por Cypress tienen atributos `data-cy` estables.
+La demo combina una interfaz adaptable en HTML, CSS y JavaScript con un minibackend Node. En M02 se configuran horarios, límites y bloqueos. En M04 el invitado elige un servicio, fecha y hora; el horario queda retenido durante 15 minutos mientras completa sus datos y confirma la reserva. La ejecución local usa almacenamiento JSON y existe una configuración para Redis. El enunciado admite un backend simulado. Los controles que utiliza Cypress tienen atributos `data-cy` estables.
 
 | Flujo obligatorio del TP6 | Estado observable y criterio de aceptación |
 |---|---|
@@ -28,13 +31,15 @@ Se implementó una demo navegable con interfaz responsiva en HTML, CSS y JavaScr
 | M04: seleccionar fecha y hora | El calendario muestra horarios libres del servicio seleccionado. La selección crea un HOLD exclusivo de 15 minutos con contador; la caducidad o el cambio de horario lo libera. |
 | M04: completar formulario y confirmar | Nombre y correo son obligatorios; teléfono y nota, opcionales. Los errores se ven en el formulario. La confirmación mantiene una referencia y un comprobante sin datos privados. |
 
-El alcance solicitado además compara **US_001–US_010** del grupo. Se incorporaron cupo diario, intervalos, antelación, bloqueo de rangos, excepciones con plazo de 24 horas y elección entre dos servicios estáticos. La [matriz de trazabilidad](traceability.md) separa evidencia E2E, unitaria e integración por historia y conserva los identificadores RF propios de cada fuente. Cuando TP1 contradice los criterios de aceptación de Trello/TP2, se siguieron estos últimos por decisión del usuario. En particular, US_006 conserva la reserva afectada como excepción para su reasignación; US_004 utiliza `Vacaciones`/`Licencia Médica` para rangos y US_003 mantiene sus categorías de día individual.
+La comparación también abarca las diez historias del grupo, **US_001–US_010**. Para cubrirlas se añadieron cupo diario, intervalos entre reservas, antelación mínima, bloqueo de rangos, excepciones con plazo de 24 horas y dos servicios estáticos. La [matriz de trazabilidad](https://github.com/AlejoPalavecino/agendaya-tp6/blob/codex/tp6-coverage-tests/docs/traceability.md) relaciona cada historia con pruebas E2E, unitarias o de integración, sin mezclar los identificadores RF de documentos distintos.
 
-**Límites:** Lucía Méndez y los dos servicios virtuales de 30 minutos son datos de demostración, no exigencias del negocio. El panel de administración no autentica usuarios; nunca debe usarse información personal real. Los avisos al invitado y al administrador solo se registran como `SIMULATED_NOT_SENT` o `SIMULATED_FAILED`: **no se envía correo**. La reasignación del invitado depende de conservar la misma sesión del navegador, y las excepciones vencidas se actualizan al recibir la siguiente solicitud, no mediante un proceso de fondo. No se afirma cumplimiento de producción, SMTP, rendimiento ni compatibilidad entre navegadores.
+Cuando TP1 y Trello/TP2 discrepan, prevalecen los criterios de aceptación de Trello/TP2, según lo acordado para esta demo. Por eso US_006 conserva la reserva afectada como excepción hasta que pueda reasignarse; US_004 admite `Vacaciones` y `Licencia Médica` para rangos, mientras US_003 mantiene las categorías del bloqueo de un solo día.
+
+**Límites de la demo.** Lucía Méndez y los dos servicios virtuales de 30 minutos son datos de ejemplo, no requisitos del negocio. El panel de administración no tiene autenticación, por lo que no debe cargarse información personal real. Los avisos quedan registrados como `SIMULATED_NOT_SENT` o `SIMULATED_FAILED`: **no se envía correo**. Para reasignar, el invitado debe conservar la misma sesión del navegador; las excepciones vencidas se actualizan con la siguiente solicitud, no mediante una tarea de fondo. No se evaluaron rendimiento ni compatibilidad entre navegadores, y esta demo no está preparada para producción.
 
 ## 4. Tarea B — Tests E2E con Cypress
 
-Cada caso restablece una copia en memoria del estado inicial y un reloj controlado; el servidor se levanta solo en un puerto local libre desde `cypress.config.js`. Los ocho recorridos usan comentarios `Arrange`, `Act` y `Assert` y variantes diferentes de los flujos M02/M04. La numeración siguiente corresponde al orden de casos dentro del archivo, **no a ocho autorías comprobadas**.
+Antes de cada caso, Cypress restablece el estado inicial en memoria y fija el reloj del servidor. `cypress.config.js` levanta una instancia aislada en un puerto local libre. Los ocho recorridos cubren variantes de M02 y M04; cada uno señala preparación, acción y verificación con comentarios `Arrange`, `Act` y `Assert`. Los nombres de la tabla indican a quién se propone asignar la revisión, **no quién escribió cada caso**.
 
 | Bloque propuesto para revisión | Variante integral | Resultado final |
 |---|---|---|
@@ -47,7 +52,7 @@ Cada caso restablece una copia en memoria del estado inicial y un reloj controla
 | 7 — Valentin Fornes | Validar datos del invitado y confirmar con aviso simulado | Aprobado |
 | 8 — Alejo Palavecino | Advertir conflicto, crear excepción y reasignar | Aprobado |
 
-**Código íntegro del archivo E2E, incluidos helpers y los ocho casos:** [`cypress/e2e/tp6.cy.js`](../cypress/e2e/tp6.cy.js). El código de cada test se reproduce a continuación para que el informe sea autocontenido.
+El siguiente bloque reproduce el archivo completo [`cypress/e2e/tp6.cy.js`](https://github.com/AlejoPalavecino/agendaya-tp6/blob/codex/tp6-coverage-tests/cypress/e2e/tp6.cy.js): funciones auxiliares y ocho casos. Se incluye para que el informe pueda leerse sin abrir el repositorio.
 
 ```javascript
 // The eight blocks are proposed assignments for student review, not claims of authorship.
@@ -260,27 +265,33 @@ describe('TP6 AgendaYA browser journeys', () => {
 });
 ```
 
-**Ejecución y evidencia.** En Windows se instaló Cypress 16.1.0 con pnpm 11.19.0 usando `CYPRESS_CACHE_FOLDER`; la ejecución headless `pnpm run test:e2e` reportó **8 aprobados, 0 fallidos, 0 pendientes y 0 omitidos** en Electron 146. El [log de la repetición](../cypress/evidence/headless-rerun-pnpm11.txt) y el [video real de la corrida](https://drive.google.com/file/d/1UQLdUejiBTVfabyBeNXp_Iw9fELTwLAy/view?usp=drivesdk) son la evidencia. Cypress informó **0 capturas de pantalla** y un video. No se registraron fallas E2E en la corrida final, por lo que no hay mensaje de error final que transcribir; los casos de datos inválidos y conflicto aprobaron precisamente porque verificaron el rechazo esperado. La instalación de dependencias sí falló en un sandbox por la creación de una junction `bluebird`; repetir el mismo procedimiento fuera del sandbox permitió ejecutar los ocho casos. Ese fallo de entorno no se presenta como defecto funcional.
+### Ejecución y evidencia
 
-**Comando reproducible:** establecer `CYPRESS_CACHE_FOLDER` en un directorio temporal escribible; ejecutar `pnpm install --frozen-lockfile`, `pnpm exec cypress install` y luego `pnpm run test:e2e`. No apunta a la instancia compartida: Cypress utiliza su servidor, estado y reloj aislados. Para la presentación en clase falta ejecutar en vivo, como mínimo, un caso exitoso y uno de error o borde.
+En Windows se instaló Cypress 16.1.0 con pnpm 11.19.0. La ejecución de `pnpm run test:e2e` en Electron 146, sin interfaz gráfica, terminó con **8 casos aprobados y ninguno fallido, pendiente u omitido**. Se conservaron el [registro de la ejecución](https://drive.google.com/file/d/1jIe6zvel23pbg_VyCZh2acgfcqRmipNQ/view?usp=drivesdk) y el [video](https://drive.google.com/file/d/1UQLdUejiBTVfabyBeNXp_Iw9fELTwLAy/view?usp=drivesdk). Cypress generó un video y ninguna captura de pantalla.
+
+No hubo fallas E2E en la ejecución final: los escenarios con datos inválidos o reservas en conflicto aprobaron porque comprobaron el rechazo esperado. Durante la instalación, el entorno restringido impidió crear una junction de `bluebird`. El mismo procedimiento funcionó fuera de ese entorno y permitió ejecutar los ocho casos; no fue una falla funcional de AgendaYA.
+
+**Para repetir la prueba:** configurar `CYPRESS_CACHE_FOLDER` en un directorio temporal con permiso de escritura y ejecutar, en este orden, `pnpm install --frozen-lockfile`, `pnpm exec cypress install` y `pnpm run test:e2e`. Cypress levanta su propio servidor y usa estado y reloj aislados; no utiliza una instancia compartida. La demostración en clase de un caso exitoso y uno de error o borde sigue pendiente.
 
 ## 5. Tarea C — Tests unitarios con asistencia de IA
 
-Se prepararon ocho bloques propuestos de cinco casos cada uno (40 tests nuevos). Cada archivo examina por lo menos dos funciones o comportamientos y combina entradas normales, de borde e inválidas. Las pruebas son `node:test` sobre reglas puras o estado inyectado, no sobre la interfaz. La suite completa de Node informó **74 aprobados, 0 fallidos**: 68 casos unitarios de dominio/helpers (incluidos los 40 nuevos) y 6 casos de integración HTTP, que **no** se contabilizan en las cuotas individuales. Evidencia: [log de Node](../cypress/evidence/node-rerun.txt).
+Se prepararon ocho bloques de cinco pruebas nuevas, propuestos para que cada integrante revise uno. Cada bloque cubre al menos dos funciones o comportamientos y contiene casos normales, de borde e inválidos. Se usó `node:test` para comprobar reglas de dominio con estado y tiempo controlados, sin depender de la interfaz.
+
+La suite completa terminó con **74 casos aprobados y ninguno fallido**: 68 pruebas unitarias, incluidas las 40 nuevas, y 6 de integración HTTP. Estas últimas no se cuentan entre las cinco asignadas a cada integrante. El [registro de Node](https://drive.google.com/file/d/1nd-8HtXHZEn9fJUWu6QZfng3s82O62i2/view?usp=drivesdk) permite consultar el resultado.
 
 ### Prompt exacto compartido y alcance de la IA
 
-Se utilizó **un único prompt compartido** para generar los ocho bloques; no existieron ocho prompts personales. Se transcribe literalmente desde [`docs/unit-test-ai-record.md`](unit-test-ai-record.md):
+Se usó **un único prompt compartido** para preparar los ocho bloques, no ocho instrucciones personales. Se reproduce literalmente como consta en el [registro de uso de IA](https://github.com/AlejoPalavecino/agendaya-tp6/blob/codex/tp6-coverage-tests/docs/unit-test-ai-record.md):
 
 > Implementá T4 ahora como escritor delegado. Leé odd/tasks/tp6-coverage-and-automated-tests.md; Engram mirror falla unknown_session. Usá tu inventario de 40 casos NUEVOS (8 bloques de 5), exactos o ajustes si T3 cambió dominio, en `test/unit/` con 8 archivos/block IDs, sin atribuir falsamente autoría individual. Cada bloque ≥2 funciones/comportamientos y normal/límite/inválido. Importante: TP6 pide prompt exacto, salida generada, cambios y evaluación crítica por bloque; creá `docs/unit-test-ai-record.md` honesto con prompt usado (tu instrucción aquí puede citarse como contexto pero redactá exacto prompt de generación), archivos de salida/código o fragmentos trazables, modificaciones efectivas y evaluación, sin afirmar que los ocho estudiantes lo escribieron. TDD ON inferido docs/traceability.md, runner node --test; para T4 son pruebas nuevas sobre comportamiento ya existente: registrá un fallo RED real de test/fixture si surge, NO inventes ni alteres código productivo para forzarlo. Ejecutá 40 y suite completa. No edit ODD doc ni commit. Route delegated writer; ~400 líneas heurística, no cap, RDD global OFF. Devolvé conteos unit vs integration y matiz autoría. Repo nested TP6-PROYECTO-FRONTEND-MINIBACKEND.
 
-La salida completa de la herramienta son los ocho archivos reproducidos en los apartados siguientes, apoyados en el [fixture común](../test/unit/fixtures.js). La IA produjo una base útil de pruebas de reglas y límites, pero no demuestra comprensión de cada integrante, autoría personal, calidad de interfaz ni envío de correo. Los nombres indican **revisión/defensa propuesta**. Cada estudiante debe revisar, correr y explicar su bloque antes de atribuirle responsabilidad en el informe final.
+La salida de la herramienta se conserva en los ocho archivos reproducidos a continuación; todos usan el mismo [fixture](https://github.com/AlejoPalavecino/agendaya-tp6/blob/codex/tp6-coverage-tests/test/unit/fixtures.js). La propuesta sirvió para cubrir reglas y límites, pero el hecho de que una prueba pase no demuestra quién la escribió ni quién puede explicarla. Cada integrante debe ejecutar y revisar su bloque antes de presentarlo como propio.
 
 ### Bloque 1 — Valentin Mendez (asignación propuesta)
 
-**Funciones/comportamientos:** `validateSchedule`, `normalizeSchedule`, `updateSchedule`. Cubre ausencia de un día, día habilitado vacío, límite de tres franjas, normalización y preservación de otro día. **Adaptación/evaluación:** el bloque quedó enfocado en reglas de dominio; el guardado visual y su feedback requieren E2E 1/2. No hubo modificación de producción para hacer pasar estas pruebas.
+Con `validateSchedule`, `normalizeSchedule` y `updateSchedule` se comprueban la ausencia de un día, un día habilitado sin franjas, el límite de tres franjas, la normalización y la conservación del horario de otro día. El guardado y la respuesta visible de la interfaz se verifican en los recorridos E2E 1 y 2. Estas pruebas no exigieron cambios en el código de producción.
 
-**Output íntegro:** [`test/unit/01-schedule.test.js`](../test/unit/01-schedule.test.js).
+**Código completo:** [`test/unit/01-schedule.test.js`](https://github.com/AlejoPalavecino/agendaya-tp6/blob/codex/tp6-coverage-tests/test/unit/01-schedule.test.js).
 
 ```javascript
 import assert from 'node:assert/strict';
@@ -335,9 +346,9 @@ test('updating Monday leaves unrelated weekday hours intact', () => {
 
 ### Bloque 2 — Facundo Rodriguez (asignación propuesta)
 
-**Funciones/comportamientos:** `isValidDate`, `isValidMonth`, `timeToMinutes`, `minutesToTime`, `datesInMonth`. Cubre año bisiesto, borde del año admitido, reloj inválido y expansión de mes. **Adaptación/evaluación:** prueba el cálculo de fechas, no la presentación del huso horario del navegador; esa limitación permanece.
+Las pruebas de `isValidDate`, `isValidMonth`, `timeToMinutes`, `minutesToTime` y `datesInMonth` incluyen un año bisiesto, el límite del año admitido, una hora inválida y la generación de fechas de un mes. Verifican los cálculos, pero no cómo se presenta el huso horario en el navegador.
 
-**Output íntegro:** [`test/unit/02-datetime.test.js`](../test/unit/02-datetime.test.js).
+**Código completo:** [`test/unit/02-datetime.test.js`](https://github.com/AlejoPalavecino/agendaya-tp6/blob/codex/tp6-coverage-tests/test/unit/02-datetime.test.js).
 
 ```javascript
 import assert from 'node:assert/strict';
@@ -374,9 +385,9 @@ test('month expansion includes all 29 leap-February dates in order', () => {
 
 ### Bloque 3 — Alvaro Tapia (asignación propuesta)
 
-**Funciones/comportamientos:** `validateBlock`, `blockDay`. Cubre fecha/motivo inválidos, inserción ordenada, superposición con rango y la excepción de una reserva cancelada. **Adaptación/evaluación:** el diálogo visible por una reserva confirmada se verifica en E2E 8; el bloque solo prueba la regla.
+`validateBlock` y `blockDay` se prueban con fechas y motivos inválidos, orden de inserción, superposición con un rango y una reserva cancelada. El diálogo de conflicto ante una reserva confirmada no se comprueba aquí, sino en el recorrido E2E 8.
 
-**Output íntegro:** [`test/unit/03-day-blocking.test.js`](../test/unit/03-day-blocking.test.js).
+**Código completo:** [`test/unit/03-day-blocking.test.js`](https://github.com/AlejoPalavecino/agendaya-tp6/blob/codex/tp6-coverage-tests/test/unit/03-day-blocking.test.js).
 
 ```javascript
 import assert from 'node:assert/strict';
@@ -419,9 +430,9 @@ test('a cancelled booking does not prevent blocking its former day', () => {
 
 ### Bloque 4 — Luciano Romero (asignación propuesta)
 
-**Funciones/comportamientos:** `validateDateRange`, `blockDateRange`. Cubre inicio/categoría inválidos, reserva cancelada, ordenación y rangos adyacentes. **Adaptación/evaluación:** la transacción con reserva activa y rollback tiene pruebas adicionales en `test/ranges-exceptions.test.js`; no se debe deducir solo de estos cinco casos.
+Con `validateDateRange` y `blockDateRange` se examinan un inicio o categoría inválidos, una reserva cancelada, el orden de los rangos y dos rangos adyacentes. La operación ante una reserva activa y su reversión están cubiertas por pruebas adicionales en `test/ranges-exceptions.test.js`; estos cinco casos no bastan para demostrarlo.
 
-**Output íntegro:** [`test/unit/04-range-blocking.test.js`](../test/unit/04-range-blocking.test.js).
+**Código completo:** [`test/unit/04-range-blocking.test.js`](https://github.com/AlejoPalavecino/agendaya-tp6/blob/codex/tp6-coverage-tests/test/unit/04-range-blocking.test.js).
 
 ```javascript
 import assert from 'node:assert/strict';
@@ -463,9 +474,9 @@ test('adjacent ranges with no shared date are both allowed', () => {
 
 ### Bloque 5 — Augusto Berloin (asignación propuesta)
 
-**Funciones/comportamientos:** `updateSchedule`, `expireExceptions`, `exceptionSummary`. Cubre futuro/pasado, vencimiento selectivo e idempotente, y privacidad del resumen. **Adaptación/evaluación:** el aviso es simulado; estas aserciones no prueban correo enviado ni un planificador de fondo.
+Las pruebas de `updateSchedule`, `expireExceptions` y `exceptionSummary` distinguen reservas futuras y pasadas, verifican el vencimiento selectivo e idempotente y comprueban que el resumen no exponga datos privados. El aviso es simulado: ninguna de estas aserciones acredita un correo enviado ni una tarea automática de fondo.
 
-**Output íntegro:** [`test/unit/05-exceptions.test.js`](../test/unit/05-exceptions.test.js).
+**Código completo:** [`test/unit/05-exceptions.test.js`](https://github.com/AlejoPalavecino/agendaya-tp6/blob/codex/tp6-coverage-tests/test/unit/05-exceptions.test.js).
 
 ```javascript
 import assert from 'node:assert/strict';
@@ -530,9 +541,9 @@ test('exception summary exposes notice metadata without guest contact details', 
 
 ### Bloque 6 — Martin Flores (asignación propuesta)
 
-**Funciones/comportamientos:** `reassignException`, `guestReassignmentSlots`, `reassignGuestException`. Cubre referencia inexistente, datos inválidos, capacidad propia, vencimiento exacto y privacidad del comprobante. **Adaptación/evaluación:** la conservación de la capacidad de acceso en la sesión se contrasta con E2E 8; la función aislada no prueba esa integración.
+`reassignException`, `guestReassignmentSlots` y `reassignGuestException` se prueban con referencias inexistentes, datos inválidos, el acceso del propio invitado, el vencimiento exacto y la privacidad del comprobante. El recorrido E2E 8 completa la verificación de la sesión del navegador, que una función aislada no puede cubrir.
 
-**Output íntegro:** [`test/unit/06-reassignment.test.js`](../test/unit/06-reassignment.test.js).
+**Código completo:** [`test/unit/06-reassignment.test.js`](https://github.com/AlejoPalavecino/agendaya-tp6/blob/codex/tp6-coverage-tests/test/unit/06-reassignment.test.js).
 
 ```javascript
 import assert from 'node:assert/strict';
@@ -594,9 +605,9 @@ test('guest reassignment retains reference and service but omits guest details',
 
 ### Bloque 7 — Valentin Fornes (asignación propuesta)
 
-**Funciones/comportamientos:** `isLiveHold`, `createHold`, `findHold`, `updateSchedule`, `confirmBooking`. Cubre borde exacto del vencimiento, servicio desconocido, limpieza de holds, invalidación por horario y recuperación de comprobante. **Adaptación/evaluación:** no simula múltiples clientes de red concurrentes; E2E 6 ejerce el conflicto HTTP observable.
+Con `isLiveHold`, `createHold`, `findHold`, `updateSchedule` y `confirmBooking` se revisan el instante exacto de vencimiento, un servicio desconocido, la limpieza de reservas temporales, el cambio de horario y la recuperación del comprobante. Estos tests no simulan clientes de red concurrentes; el conflicto HTTP observable se comprueba en E2E 6.
 
-**Output íntegro:** [`test/unit/07-holds.test.js`](../test/unit/07-holds.test.js).
+**Código completo:** [`test/unit/07-holds.test.js`](https://github.com/AlejoPalavecino/agendaya-tp6/blob/codex/tp6-coverage-tests/test/unit/07-holds.test.js).
 
 ```javascript
 import assert from 'node:assert/strict';
@@ -651,9 +662,9 @@ test('a confirmed token resolves to its receipt after the hold has expired', () 
 
 ### Bloque 8 — Alejo Palavecino (asignación propuesta)
 
-**Funciones/comportamientos:** `isValidEmail`, `validateGuest`, `createHold`, `confirmBooking`. Cubre correo válido/inválido, requeridos en blanco, opcionales de tipo incorrecto, almacenamiento normalizado y vencimiento exacto. **Adaptación/evaluación:** formato sintáctico no verifica DNS ni entrega de notificaciones; E2E 7 examina los errores visibles.
+`isValidEmail`, `validateGuest`, `createHold` y `confirmBooking` se ejercitan con correos válidos e inválidos, campos obligatorios en blanco, opcionales del tipo incorrecto, almacenamiento normalizado y vencimiento exacto. La validación del formato no comprueba DNS ni entrega de avisos. Los errores que ve el invitado se examinan en E2E 7.
 
-**Output íntegro:** [`test/unit/08-guests-and-bookings.test.js`](../test/unit/08-guests-and-bookings.test.js).
+**Código completo:** [`test/unit/08-guests-and-bookings.test.js`](https://github.com/AlejoPalavecino/agendaya-tp6/blob/codex/tp6-coverage-tests/test/unit/08-guests-and-bookings.test.js).
 
 ```javascript
 import assert from 'node:assert/strict';
@@ -709,24 +720,24 @@ test('confirmation at the hold deadline rejects without booking or notification'
 
 ### Modificaciones, evaluación general y resultados
 
-La propuesta inicial de casos se adaptó al modelo multiservicio de T3: los tests de HOLD y comprobante pasan el identificador de servicio. El último caso del bloque 8 se modificó para cubrir el borde de caducidad en lugar de repetir una aserción de idempotencia. Un caso de reserva pasada se sustituyó por preservación de un día no relacionado porque otro bloque ya cubría el pasado. Después de la primera ejecución aprobada, los archivos se renombraron por comportamiento (no por estudiante) para evitar sugerir autoría inexistente y se reutilizó un fixture común. **No hubo cambios de código productivo para que estas 40 pruebas pasaran.** La primera ejecución ya fue verde; no se fabricó una fase RED para esta caracterización.
+La propuesta inicial se ajustó al catálogo incorporado en T3: las pruebas de reserva temporal y comprobante ahora indican el servicio. En el bloque 8, el último caso pasó a cubrir el instante de caducidad, en vez de repetir una comprobación de idempotencia. También se reemplazó un caso de reserva pasada por otro que verifica la conservación de un día no relacionado, porque el pasado ya estaba cubierto en otro bloque. Tras la primera ejecución, los archivos se nombraron por comportamiento, no por integrante, y se compartió un fixture. **No se modificó código de producción para que estas 40 pruebas pasaran.** Como aprobaron desde la primera corrida, no corresponde afirmar una fase RED que no ocurrió.
 
-`node --test test/unit/*.test.js` informó **40/40**. `node --test test/*.test.js test/unit/*.test.js` informó **74/74**. La IA fue eficaz para proponer casos y límites, pero la revisión humana sigue siendo necesaria para confirmar que cada aserción representa un criterio de aceptación y que cada integrante pueda defenderla. Se distingue expresamente el resultado de ejecución de la responsabilidad individual pendiente.
+El comando `node --test test/unit/*.test.js` aprobó **40 de 40**; la suite `node --test test/*.test.js test/unit/*.test.js`, **74 de 74**. La asistencia permitió proponer casos y límites, pero cada resultado esperado debe contrastarse con los criterios de aceptación. Sigue pendiente que los integrantes revisen y expliquen las pruebas que se les proponen.
 
 ## 6. Reflexión estructurada
 
-**1. Trazabilidad.** La especificación permitió derivar los flujos principales, pero no directamente todos los tests: TP1, TP2 y el tablero reutilizan algunos identificadores RF con significados distintos, y US_006 contradice su propia conversación con el criterio de aceptación. También había listas de motivos diferentes para bloqueo individual y por rango. Elegir explícitamente los criterios de aceptación de Trello/TP2 y vincular cada test con ID de historia, comportamiento y fuente evitó que una coincidencia de número ocultara diferencias de negocio.
+**1. Trazabilidad.** Los flujos principales se desprendían del enunciado, pero convertirlos en pruebas exigió resolver diferencias entre TP1, TP2 y Trello. Algunos identificadores RF cambian de significado y, en US_006, la conversación no coincide con el criterio de aceptación. También varían los motivos permitidos para bloquear un día o un rango. Tomar los criterios de Trello/TP2 como referencia y anotar historia, comportamiento y fuente para cada prueba evitó tratar dos requisitos distintos como si fueran el mismo.
 
-**2. Valor de testear.** Las pruebas revelaron durante T1 una regresión en la separación de horarios entre franjas adyacentes: una corrida enfocada quedó en 10/11 antes de corregir la regla. Las verificaciones de datos inválidos y de colisión en Cypress luego confirmaron que no se guardan cambios inconsistentes ni se duplica una reserva. Esto muestra que testear no es solo obtener un contador verde: obliga a observar el estado final y a corregir la lógica cuando un caso de borde contradice lo esperado.
+**2. Valor de testear.** Durante T1, una prueba de franjas adyacentes falló: la corrida enfocada aprobó 10 de 11 casos y permitió corregir la separación de horarios. Más tarde, Cypress comprobó que una entrada inválida no se guarda y que dos clientes no obtienen la misma reserva temporal. Lo importante no fue acumular aprobados, sino detectar un caso en el que el estado final no coincidía con la regla esperada.
 
-**3. Uso de IA.** La asistencia fue especialmente útil para enumerar y redactar los 40 casos unitarios de reglas, fechas, bloqueos, excepciones y reservas con un mismo prompt; los E2E requirieron mayor atención al estado del navegador, los selectores y el reloj del servidor. La IA no puede certificar que la aserción coincide con el negocio, que se entregó un correo real ni que ocho estudiantes comprenden los tests. Por eso se conservaron el prompt y la salida, se documentaron las adaptaciones y se dejó pendiente la revisión individual.
+**3. Uso de IA.** El prompt compartido ayudó a preparar 40 pruebas unitarias para fechas, bloqueos, excepciones y reservas. En los recorridos E2E fue necesario revisar además el estado del navegador, los selectores y el reloj del servidor. Ninguna respuesta generada puede confirmar por sí sola que una aserción representa el negocio, que se envió un correo o que los ocho integrantes comprenden el código. Por eso se conservaron la instrucción, los archivos producidos y las correcciones realizadas; la revisión individual sigue pendiente.
 
 ## 7. Lecciones aprendidas
 
-**Diseñar para poder probar.** Separar reglas de dominio de la interfaz y permitir la inyección de reloj y estado hizo posible cubrir el borde de 15 minutos y el plazo de 24 horas sin esperar tiempo real. Los selectores `data-cy` evitaron acoplar Cypress a clases CSS o textos de presentación. La mejora futura es mantener esa separación cuando se agreguen nuevas reglas, sin convertir la demo en un producto más amplio que el alcance acordado.
+**Diseñar para poder probar.** Separar las reglas de la interfaz e inyectar el reloj y el estado permitió comprobar el vencimiento de 15 minutos y el plazo de 24 horas sin esperar en tiempo real. Los selectores `data-cy` también evitaron que un cambio de estilo rompiera los recorridos. Vale la pena conservar esta separación al incorporar reglas nuevas, sin ampliar la demo más allá de lo acordado.
 
-**La IA acelera, pero no valida la comprensión.** Un prompt compartido produjo casos útiles y ejecutables, pero varios necesitaron adaptación al catálogo de servicios y una revisión de nombres para no insinuar autoría personal. La siguiente instancia de trabajo del equipo es que cada integrante examine sus cinco pruebas y su recorrido E2E, proponga cambios si corresponde y pueda explicar por qué cada resultado esperado es correcto.
+**Una prueba generada requiere revisión.** El prompt compartido produjo casos ejecutables, pero hubo que adaptarlos al catálogo de servicios y nombrar los archivos de forma que no insinuaran autoría personal. Antes de la entrega, cada integrante debería ejecutar sus cinco pruebas y el recorrido E2E propuesto, discutir los cambios necesarios y explicar los resultados esperados.
 
-**La ambigüedad se convierte en una falla de prueba si no se resuelve.** Los identificadores RF discordantes y las políticas opuestas para US_006 habrían permitido escribir tests incompatibles entre sí. Registrar la fuente que prevalece y las concesiones de la demo preservó la trazabilidad; para trabajos futuros, el equipo debería aclarar estos conflictos antes de codificar.
+**Los desacuerdos entre fuentes deben resolverse antes de probar.** Los RF discordantes y los textos contradictorios de US_006 podían dar lugar a pruebas incompatibles. Dejar constancia de la fuente elegida y de las limitaciones de la demo hizo posible interpretar los resultados. En un proyecto posterior, convendría cerrar estas diferencias antes de implementar.
 
-**Evidencia no es autoría ni capacidad de producción.** Los logs y el video prueban una ejecución local de 74 casos Node y ocho Cypress, pero no un envío de email, un sistema autenticado, compatibilidad multi-navegador ni la participación individual de cada estudiante. El informe final debe conservar estas distinciones y completar la presentación en clase y la validación del equipo.
+**Los resultados tienen un alcance concreto.** Los registros y el video muestran una ejecución local de 74 pruebas Node y ocho recorridos Cypress. No prueban envío de correos, autenticación, compatibilidad entre navegadores ni participación individual de cada estudiante. La presentación en clase y la validación del equipo siguen siendo pasos necesarios para cerrar el trabajo.
