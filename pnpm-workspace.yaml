@@ -1,0 +1,5 @@
+packages:
+  - .
+
+overrides:
+  "strip-ansi@7.2.0>ansi-regex": "6.2.2"

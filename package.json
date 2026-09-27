@@ -8,6 +8,10 @@
   "scripts": {
     "start": "node server/index.js",
     "dev": "node --watch server/index.js",
-    "reset": "node scripts/reset-data.js"
+    "reset": "node scripts/reset-data.js",
+    "test:e2e": "cypress run --browser electron"
+  },
+  "devDependencies": {
+    "cypress": "16.1.0"
   }
 }

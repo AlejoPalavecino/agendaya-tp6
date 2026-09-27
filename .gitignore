@@ -9,3 +9,5 @@ Thumbs.db
 .env.*
 !.env.example
 *.tmp
+cypress/screenshots/
+cypress/videos/
