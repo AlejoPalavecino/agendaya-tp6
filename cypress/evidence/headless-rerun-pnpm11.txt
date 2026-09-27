@@ -21,7 +21,7 @@ Read more about supported browsers: https://on.cypress.io/launching-browsers
 
 
 ────────────────────────────────────────────────────────────────────────────────────────────────────
-                                                                                                    
+
   Running:  tp6.cy.js                                                                       (1 of 1)
 
 
@@ -64,9 +64,8 @@ Read more about supported browsers: https://on.cypress.io/launching-browsers
   (Run Finished)
 
 
-       Spec                                              Tests  Passing  Failing  Pending  Skipped  
+       Spec                                              Tests  Passing  Failing  Pending  Skipped
   ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
   │ ✔  tp6.cy.js                                00:10        8        8        -        -        - │
   └────────────────────────────────────────────────────────────────────────────────────────────────┘
-    ✔  All specs passed!                        00:10        8        8        -        -        -  
-
+    ✔  All specs passed!                        00:10        8        8        -        -        -
